@@ -1,0 +1,91 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Funciones auxiliares
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isProjectMember(projectId) {
+      return isAuthenticated() && (
+        get(/databases/$(database)/documents/projects/$(projectId)).data.members.hasAny([request.auth.uid]) ||
+        get(/databases/$(database)/documents/projects/$(projectId)).data.ownerId == request.auth.uid
+      );
+    }
+
+    // Reglas para taskflow
+    match /taskflow/{document}/data/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    // Reglas para proyectos y sus subcolecciones
+    match /projects/{projectId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isProjectMember(projectId);
+      
+      // Subcolección de comentarios
+      match /comments/{commentId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated();
+        allow update, delete: if resource.data.userId == request.auth.uid;
+      }
+
+      // Subcolección de archivos
+      match /files/{fileId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated();
+        allow delete: if isProjectMember(projectId);
+      }
+
+      // Subcolección de miembros
+      match /members/{memberId} {
+        allow read: if isAuthenticated();
+        allow write: if isProjectMember(projectId);
+      }
+    }
+
+    // Reglas para tareas
+    match /tasks/{taskId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated();
+    }
+
+    // Reglas para userTasks
+    match /userTasks/{userId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Reglas para userProjects
+    match /userProjects/{userId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Reglas para clientes
+    match /clients/{clientId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    // Reglas para usuarios
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isOwner(userId);
+      allow delete: if false; // Prevenir eliminación de usuarios
+    }
+
+    // Regla por defecto - denegar todo lo no especificado explícitamente
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

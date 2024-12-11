@@ -1,0 +1,31 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read: if request.auth != null;
+      
+      // Permitir subida de archivos a usuarios autenticados
+      allow create: if request.auth != null
+        && request.resource.size < 10 * 1024 * 1024  // Límite de 10MB
+        && (
+          // Permitir archivos de imagen
+          request.resource.contentType.matches('image/.*') ||
+          // Permitir documentos comunes
+          request.resource.contentType.matches('application/pdf') ||
+          request.resource.contentType.matches('application/msword') ||
+          request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.wordprocessingml.document') ||
+          // Permitir hojas de cálculo
+          request.resource.contentType.matches('application/vnd.ms-excel') ||
+          request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') ||
+          // Permitir presentaciones
+          request.resource.contentType.matches('application/vnd.ms-powerpoint') ||
+          request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.presentationml.presentation') ||
+          // Permitir archivos de texto
+          request.resource.contentType.matches('text/.*')
+        );
+        
+      // Permitir eliminar archivos al propietario
+      allow delete: if request.auth != null;
+    }
+  }
+} 

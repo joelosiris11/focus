@@ -1,0 +1,44 @@
+{
+    "users": {
+      "exampleUserId": {
+        "displayName": "Ejemplo",
+        "email": "ejemplo@correo.com",
+        "photoURL": "https://ejemplo.com/foto.jpg"
+      }
+    },
+    "projects": {
+      "exampleProjectId": {
+        "title": "Proyecto Ejemplo",
+        "status": "En progreso",
+        "dueDate": "2023-12-31T23:59:59Z",
+        "progress": 50,
+        "ownerId": "exampleUserId",
+        "members": ["exampleUserId"]
+      }
+    },
+    "tasks": {
+      "exampleTaskId": {
+        "title": "Tarea Ejemplo",
+        "status": "Pendiente",
+        "dueDate": "2023-11-30T23:59:59Z",
+        "assignedTo": "exampleUserId",
+        "projectId": "exampleProjectId"
+      }
+    },
+    "userProjects": {
+      "exampleUserId": {
+        "projects": ["exampleProjectId"]
+      }
+    },
+    "userTasks": {
+      "exampleUserId": {
+        "tasks": ["exampleTaskId"]
+      }
+    },
+    "taskSummaries": {
+      "exampleUserId": {
+        "totalTasks": 1,
+        "pendingTasks": 1
+      }
+    }
+  }

@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "788312826114",
+    "project_id": "focus-35f20",
+    "storage_bucket": "focus-35f20.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:788312826114:android:2de0fa01efac1ccec0221b",
+        "android_client_info": {
+          "package_name": "com.teco.focus"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "788312826114-eo8lf5t5dveuv2o7aaq0ls53h2d1313j.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.teco.focus",
+            "certificate_hash": "cc5c5cdedd8702353044adc4f0179eacae89c5ee"
+          }
+        },
+        {
+          "client_id": "788312826114-2t1jjotq7qvv0pfv59vnkcbain8vjauf.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBrjDd6QXOkF_yfN_NQstx_sHyWQaq-Lbw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "788312826114-2t1jjotq7qvv0pfv59vnkcbain8vjauf.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
