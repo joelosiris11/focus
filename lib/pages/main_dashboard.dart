@@ -957,7 +957,7 @@ class _ProjectsOverviewTableState extends State<ProjectsOverviewTable> {
                   .collection('users')
                   .doc(data['ownerId'])
                   .get();
-              final userName = userDoc.data()?['name'] ?? 'Usuario';
+              final userName = userDoc.data()?['displayName'] ?? userDoc.data()?['email']?.toString().split('@')[0] ?? 'Usuario';
               
               projectItems.add(ActivityItem(
                 type: 'project',
@@ -993,7 +993,7 @@ class _ProjectsOverviewTableState extends State<ProjectsOverviewTable> {
                   .get();
               
               final projectTitle = projectDoc.data()?['title'] ?? 'proyecto';
-              final userName = userDoc.data()?['name'] ?? 'Usuario';
+              final userName = userDoc.data()?['displayName'] ?? userDoc.data()?['email']?.toString().split('@')[0] ?? 'Usuario';
 
               taskItems.add(ActivityItem(
                 type: 'task',
@@ -1029,7 +1029,7 @@ class _ProjectsOverviewTableState extends State<ProjectsOverviewTable> {
                     .collection('users')
                     .doc(data['userId'])
                     .get();
-                final userName = userDoc.data()?['name'] ?? 'Usuario';
+                final userName = userDoc.data()?['displayName'] ?? userDoc.data()?['email']?.toString().split('@')[0] ?? 'Usuario';
 
                 commentItems.add(ActivityItem(
                   type: 'comment',
