@@ -37,9 +37,38 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
+        // Disable swipe gesture on PageRoute transitions
+        pageTransitionsTheme: PageTransitionsTheme(
+          builders: {
+            TargetPlatform.android: NoAnimationTransitionBuilder(),
+            TargetPlatform.iOS: NoAnimationTransitionBuilder(),
+          },
+        ),
       ),
-      home: const SplashScreen(),
+      // Disable iOS swipe back gesture
+      home: WillPopScope(
+        onWillPop: () async {
+          // Return false to prevent the default back button behavior
+          return false;
+        },
+        child: const SplashScreen(),
+      ),
     );
+  }
+}
+
+// Custom transition builder that disables swipe gestures
+class NoAnimationTransitionBuilder extends PageTransitionsBuilder {
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    // No animation, just return the child directly
+    return child;
   }
 }
 
@@ -74,6 +103,8 @@ class _SplashScreenState extends State<SplashScreen> {
         context,
         MaterialPageRoute(
           builder: (context) => const MainDashboard(),
+          // Disable swipe to go back
+          fullscreenDialog: true,
         ),
       );
     } else {
@@ -82,6 +113,8 @@ class _SplashScreenState extends State<SplashScreen> {
         context,
         MaterialPageRoute(
           builder: (context) => const LoginPage(),
+          // Disable swipe to go back
+          fullscreenDialog: true,
         ),
       );
     }
@@ -157,98 +190,106 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     final authService = AuthService();
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Focus.',
-                  style: TextStyle(
-                    fontSize: 48,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.purple,
+    return WillPopScope(
+      onWillPop: () async {
+        // Prevent back navigation
+        return false;
+      },
+      child: Scaffold(
+        body: Stack(
+          children: [
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Focus.',
+                    style: TextStyle(
+                      fontSize: 48,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.purple,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'una app de ',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[400],
+                        ),
+                      ),
+                      Image.asset(
+                        'assets/ltm.png',
+                        height: 34,
+                        width: 34,
+                      ),
+                      Text(
+                        ' T-ecogroup',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[400],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              bottom: 100,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: SignInButton(
+                  Buttons.Google,
+                  onPressed: () async {
+                    setState(() {
+                      _isLoading = true;
+                    });
+                    print('Iniciando el proceso de inicio de sesión con Google...');
+                    try {
+                      final user = await authService.signInWithGoogle();
+                      if (user != null) {
+                        print('Inicio de sesión exitoso: ${user.email}');
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const MainDashboard(),
+                            // Disable swipe to go back
+                            fullscreenDialog: true,
+                          ),
+                        );
+                      } else {
+                        print('No se pudo iniciar sesión, el usuario es nulo.');
+                      }
+                    } catch (e) {
+                      print('Error durante el inicio de sesión: $e');
+                    } finally {
+                      setState(() {
+                        _isLoading = false;
+                      });
+                    }
+                  },
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'una app de ',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[400],
-                      ),
-                    ),
-                    Image.asset(
-                      'assets/ltm.png',
-                      height: 34,
-                      width: 34,
-                    ),
-                    Text(
-                      ' T-ecogroup',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[400],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Positioned(
-            bottom: 100,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: SignInButton(
-                Buttons.Google,
-                onPressed: () async {
-                  setState(() {
-                    _isLoading = true;
-                  });
-                  print('Iniciando el proceso de inicio de sesión con Google...');
-                  try {
-                    final user = await authService.signInWithGoogle();
-                    if (user != null) {
-                      print('Inicio de sesión exitoso: ${user.email}');
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const MainDashboard(),
-                        ),
-                      );
-                    } else {
-                      print('No se pudo iniciar sesión, el usuario es nulo.');
-                    }
-                  } catch (e) {
-                    print('Error durante el inicio de sesión: $e');
-                  } finally {
-                    setState(() {
-                      _isLoading = false;
-                    });
-                  }
-                },
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
               ),
             ),
-          ),
-          if (_isLoading)
-            Container(
-              color: Colors.black54,
-              child: Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            if (_isLoading)
+              Container(
+                color: Colors.black54,
+                child: Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

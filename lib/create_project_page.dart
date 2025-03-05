@@ -31,145 +31,152 @@ class _CreateProjectPageState extends State<CreateProjectPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: Colors.grey[800]),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'Nuevo Proyecto',
-          style: TextStyle(
-            color: Colors.grey[800],
-            fontWeight: FontWeight.bold,
+    return WillPopScope(
+      onWillPop: () async {
+        // Use the back button in the AppBar instead of gesture
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: Colors.grey[50],
+        appBar: AppBar(
+          elevation: 0,
+          backgroundColor: Colors.transparent,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_ios, color: Colors.grey[800]),
+            onPressed: () => Navigator.pop(context),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: _submitForm,
-            child: Text(
-              'Guardar',
-              style: TextStyle(
-                color: Colors.blue[600],
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
+          title: Text(
+            'Nuevo Proyecto',
+            style: TextStyle(
+              color: Colors.grey[800],
+              fontWeight: FontWeight.bold,
             ),
           ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header con imagen decorativa
-              Container(
-                height: 160,
-                width: double.infinity,
-                margin: EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.blue[400]!, Colors.blue[600]!],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+          actions: [
+            TextButton(
+              onPressed: _submitForm,
+              child: Text(
+                'Guardar',
+                style: TextStyle(
+                  color: Colors.blue[600],
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ],
+        ),
+        body: SingleChildScrollView(
+          physics: const ClampingScrollPhysics(),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header con imagen decorativa
+                Container(
+                  height: 160,
+                  width: double.infinity,
+                  margin: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Colors.blue[400]!, Colors.blue[600]!],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Stack(
-                  children: [
-                    Positioned(
-                      right: 20,
-                      bottom: 20,
-                      child: Icon(
-                        Icons.rocket_launch,
-                        size: 80,
-                        color: Colors.white.withOpacity(0.3),
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        right: 20,
+                        bottom: 20,
+                        child: Icon(
+                          Icons.rocket_launch,
+                          size: 80,
+                          color: Colors.white.withOpacity(0.3),
+                        ),
                       ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(24.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Crear Nuevo Proyecto',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
+                      Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Crear Nuevo Proyecto',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Define los detalles de tu proyecto',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.8),
-                              fontSize: 16,
+                            SizedBox(height: 8),
+                            Text(
+                              'Define los detalles de tu proyecto',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.8),
+                                fontSize: 16,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
 
-              // Contenido principal
-              Container(
-                margin: EdgeInsets.symmetric(horizontal: 16),
-                padding: EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: Offset(0, 5),
-                    ),
-                  ],
+                // Contenido principal
+                Container(
+                  margin: EdgeInsets.symmetric(horizontal: 16),
+                  padding: EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionTitle('Información Básica'),
+                      SizedBox(height: 16),
+                      _buildTextField(
+                        'Nombre del Proyecto',
+                        Icons.work_outline,
+                        onChanged: (value) => _projectName = value,
+                      ),
+                      SizedBox(height: 24),
+                      _buildTextField(
+                        'Descripción',
+                        Icons.description_outlined,
+                        maxLines: 3,
+                        onChanged: (value) => _projectDescription = value,
+                      ),
+                      SizedBox(height: 32),
+                      
+                      _buildSectionTitle('Personalización'),
+                      SizedBox(height: 16),
+                      _buildColorPicker(),
+                      SizedBox(height: 24),
+                      _buildDatePicker(),
+                      
+                      SizedBox(height: 32),
+                      _buildSectionTitle('Tareas del Proyecto'),
+                      SizedBox(height: 16),
+                      _buildAddTaskButton(),
+                      SizedBox(height: 16),
+                      _buildTasksList(),
+                    ],
+                  ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildSectionTitle('Información Básica'),
-                    SizedBox(height: 16),
-                    _buildTextField(
-                      'Nombre del Proyecto',
-                      Icons.work_outline,
-                      onChanged: (value) => _projectName = value,
-                    ),
-                    SizedBox(height: 24),
-                    _buildTextField(
-                      'Descripción',
-                      Icons.description_outlined,
-                      maxLines: 3,
-                      onChanged: (value) => _projectDescription = value,
-                    ),
-                    SizedBox(height: 32),
-                    
-                    _buildSectionTitle('Personalización'),
-                    SizedBox(height: 16),
-                    _buildColorPicker(),
-                    SizedBox(height: 24),
-                    _buildDatePicker(),
-                    
-                    SizedBox(height: 32),
-                    _buildSectionTitle('Tareas del Proyecto'),
-                    SizedBox(height: 16),
-                    _buildAddTaskButton(),
-                    SizedBox(height: 16),
-                    _buildTasksList(),
-                  ],
-                ),
-              ),
-              SizedBox(height: 24),
-            ],
+                SizedBox(height: 24),
+              ],
+            ),
           ),
         ),
       ),
@@ -240,6 +247,7 @@ class _CreateProjectPageState extends State<CreateProjectPage> {
           height: 60,
           child: ListView(
             scrollDirection: Axis.horizontal,
+            physics: const ClampingScrollPhysics(),
             children: pastelColors.map((color) {
               return GestureDetector(
                 onTap: () {

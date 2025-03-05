@@ -30,6 +30,11 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {});
+      }
+    });
   }
 
   @override
@@ -104,7 +109,44 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
           .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
+          return Scaffold(
+            backgroundColor: const Color(0xFFF5F7FA),
+            appBar: AppBar(
+              backgroundColor: const Color(0xFFF5F7FA),
+              elevation: 0,
+              iconTheme: const IconThemeData(color: Color(0xFF263238)),
+              leading: IconButton(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.arrow_back, size: 20),
+                ),
+                onPressed: () => Navigator.pop(context),
+              ),
+              title: const Text(
+                'Cargando proyecto...',
+                style: TextStyle(
+                  color: Color(0xFF263238),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            body: const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1E88E5)),
+              ),
+            ),
+          );
         }
 
         if (snapshot.hasError) {
@@ -128,76 +170,99 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
             : _hexToColor(projectData['color'] as String? ?? '#1976D2');
 
         return Scaffold(
-          backgroundColor: Colors.grey[100],
+          backgroundColor: const Color(0xFFF5F7FA),
           appBar: AppBar(
             backgroundColor: Colors.white,
-            elevation: 0,
+            elevation: 1,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded),
-              color: Colors.grey[800],
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5F7FA),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.arrow_back_rounded, size: 20),
+              ),
               onPressed: () => Navigator.of(context).pop(),
             ),
-            title: Text(
-              projectName,
-              style: TextStyle(
-                color: Colors.grey[800],
-                fontWeight: FontWeight.bold,
-              ),
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  projectName,
+                  style: const TextStyle(
+                    color: Color(0xFF263238),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(projectStatus).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _getStatusIcon(projectStatus),
+                        color: _getStatusColor(projectStatus),
+                        size: 12,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        projectStatus.toUpperCase(),
+                        style: TextStyle(
+                          color: _getStatusColor(projectStatus),
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
             actions: [
               Container(
                 margin: const EdgeInsets.only(right: 16),
-                child: Row(
-                  children: [
-                    Container(
+                child: FutureBuilder<int>(
+                  future: calculateTotalHours(widget.projectId),
+                  builder: (context, snapshot) {
+                    final totalHours = snapshot.data ?? 0;
+                    return Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 12,
-                        vertical: 6,
+                        vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: projectColor.withOpacity(0.1),
+                        color: const Color(0xFFF5F7FA),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Text(
-                        projectStatus.toUpperCase(),
-                        style: TextStyle(
-                          color: projectColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.timer_rounded, size: 16, color: Colors.grey[700]),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$totalHours horas',
+                            style: TextStyle(
+                              color: Colors.grey[800],
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: 16),
-                    FutureBuilder<int>(
-                      future: calculateTotalHours(widget.projectId),
-                      builder: (context, snapshot) {
-                        final totalHours = snapshot.data ?? 0;
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[100],
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.timer_rounded, size: 16, color: Colors.grey[600]),
-                              const SizedBox(width: 4),
-                              Text(
-                                '$totalHours horas',
-                                style: TextStyle(
-                                  color: Colors.grey[700],
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ),
             ],
@@ -206,62 +271,113 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
             children: [
               Container(
                 color: Colors.white,
-                child: TabBar(
-                  controller: _tabController,
-                  labelColor: projectColor,
-                  unselectedLabelColor: Colors.grey,
-                  indicatorColor: projectColor,
-                  indicatorWeight: 3,
-                  tabs: const [
-                    Tab(
-                      icon: Icon(Icons.dashboard_rounded),
-                      text: 'Kanban',
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Column(
+                  children: [
+                    TabBar(
+                      controller: _tabController,
+                      labelColor: projectColor,
+                      unselectedLabelColor: Colors.grey[500],
+                      indicatorColor: projectColor,
+                      indicatorWeight: 3,
+                      labelStyle: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                      unselectedLabelStyle: const TextStyle(
+                        fontWeight: FontWeight.normal,
+                        fontSize: 14,
+                      ),
+                      tabs: const [
+                        Tab(
+                          icon: Icon(Icons.dashboard_rounded, size: 22),
+                          text: 'Kanban',
+                        ),
+                        Tab(
+                          icon: Icon(Icons.info_rounded, size: 22),
+                          text: 'Detalles',
+                        ),
+                        Tab(
+                          icon: Icon(Icons.chat_rounded, size: 22),
+                          text: 'Conversación',
+                        ),
+                      ],
                     ),
-                    Tab(
-                      icon: Icon(Icons.info_rounded),
-                      text: 'Detalles',
-                    ),
-                    Tab(
-                      icon: Icon(Icons.chat_rounded),
-                      text: 'Conversación',
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          IconButton(
+                            icon: Icon(
+                              Icons.arrow_back_ios_rounded,
+                              color: _tabController.index > 0 ? projectColor : Colors.grey[300],
+                              size: 20,
+                            ),
+                            onPressed: _tabController.index > 0
+                                ? () {
+                                    _tabController.animateTo(_tabController.index - 1);
+                                    setState(() {});
+                                  }
+                                : null,
+                            tooltip: 'Pestaña anterior',
+                            splashRadius: 24,
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: List.generate(
+                              3,
+                              (index) => Container(
+                                width: 8,
+                                height: 8,
+                                margin: const EdgeInsets.symmetric(horizontal: 4),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: _tabController.index == index
+                                      ? projectColor
+                                      : Colors.grey[300],
+                                ),
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              color: _tabController.index < 2 ? projectColor : Colors.grey[300],
+                              size: 20,
+                            ),
+                            onPressed: _tabController.index < 2
+                                ? () {
+                                    _tabController.animateTo(_tabController.index + 1);
+                                    setState(() {});
+                                  }
+                                : null,
+                            tooltip: 'Siguiente pestaña',
+                            splashRadius: 24,
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
               ),
               Expanded(
                 child: Container(
-                  color: Colors.grey[100],
+                  color: const Color(0xFFF5F7FA),
                   child: TabBarView(
                     controller: _tabController,
+                    physics: const NeverScrollableScrollPhysics(),
                     children: [
-                      // Kanban Tab
                       KanbanBoard(
                         projectId: widget.projectId,
                         projectColor: projectColor,
                       ),
-                      // Detalles Tab
                       SingleChildScrollView(
                         padding: const EdgeInsets.all(24),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Container(
-                              padding: const EdgeInsets.all(32),
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: [Colors.blue.shade50, Colors.white],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(24),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.03),
-                                    blurRadius: 15,
-                                    offset: const Offset(0, 5),
-                                  ),
-                                ],
-                              ),
+                            _buildCardContainer(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -274,7 +390,7 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
                                           color: _getStatusColor(projectStatus).withOpacity(0.1),
                                           borderRadius: BorderRadius.circular(30),
                                           border: Border.all(
-                                            color: _getStatusColor(projectStatus).withOpacity(0.5),
+                                            color: _getStatusColor(projectStatus).withOpacity(0.2),
                                           ),
                                         ),
                                         child: Row(
@@ -296,9 +412,13 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
                                           ],
                                         ),
                                       ),
+                                      _buildStatusChangeButton(projectStatus),
                                     ],
                                   ),
                                   const SizedBox(height: 24),
+                                  const Divider(height: 1, color: Color(0xFFEEEEEE)),
+                                  const SizedBox(height: 24),
+                                  
                                   Row(
                                     children: [
                                       Expanded(
@@ -306,7 +426,7 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
                                           'Fecha de inicio',
                                           _formatDate(projectData['startDate']),
                                           Icons.calendar_today_outlined,
-                                          Colors.green,
+                                          const Color(0xFF4CAF50),
                                         ),
                                       ),
                                       const SizedBox(width: 16),
@@ -315,85 +435,256 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
                                           'Fecha límite',
                                           _formatDate(projectData['dueDate']),
                                           Icons.event_outlined,
-                                          Colors.orange,
+                                          const Color(0xFFFFA726),
                                         ),
                                       ),
                                     ],
                                   ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 32),
-                            Container(
-                              padding: const EdgeInsets.all(32),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(24),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.03),
-                                    blurRadius: 15,
-                                    offset: const Offset(0, 5),
+                                  
+                                  const SizedBox(height: 24),
+                                  
+                                  StreamBuilder<QuerySnapshot>(
+                                    stream: FirebaseFirestore.instance
+                                        .collection('tasks')
+                                        .where('projectId', isEqualTo: widget.projectId)
+                                        .snapshots(),
+                                    builder: (context, taskSnapshot) {
+                                      if (!taskSnapshot.hasData) {
+                                        return const Center(
+                                          child: LinearProgressIndicator(
+                                            backgroundColor: Color(0xFFE0E0E0),
+                                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1E88E5)),
+                                          ),
+                                        );
+                                      }
+                                      
+                                      final tasks = taskSnapshot.data!.docs;
+                                      final totalTasks = tasks.length;
+                                      
+                                      if (totalTasks == 0) {
+                                        return Container(
+                                          padding: const EdgeInsets.all(16),
+                                          decoration: BoxDecoration(
+                                            color: Colors.grey[50],
+                                            borderRadius: BorderRadius.circular(12),
+                                            border: Border.all(color: Colors.grey.withOpacity(0.1)),
+                                          ),
+                                          child: Center(
+                                            child: Column(
+                                              children: [
+                                                Icon(
+                                                  Icons.assignment_outlined,
+                                                  size: 36,
+                                                  color: Colors.grey[300],
+                                                ),
+                                                const SizedBox(height: 8),
+                                                Text(
+                                                  'No hay tareas en este proyecto',
+                                                  style: TextStyle(
+                                                    color: Colors.grey[600],
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                      
+                                      final completedTasks = tasks
+                                          .where((task) => (task.data() as Map<String, dynamic>)['status'] == 'completada')
+                                          .length;
+                                      
+                                      final inProcessTasks = tasks
+                                          .where((task) => (task.data() as Map<String, dynamic>)['status'] == 'en proceso')
+                                          .length;
+                                      
+                                      final pendingTasks = tasks
+                                          .where((task) => (task.data() as Map<String, dynamic>)['status'] == 'por hacer')
+                                          .length;
+                                      
+                                      final progressPercentage = totalTasks > 0
+                                          ? (completedTasks / totalTasks * 100).round()
+                                          : 0;
+                                      
+                                      return Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                'Progreso del Proyecto',
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.grey[800],
+                                                ),
+                                              ),
+                                              Text(
+                                                '$progressPercentage%',
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: progressPercentage > 66
+                                                      ? const Color(0xFF4CAF50)
+                                                      : progressPercentage > 33
+                                                          ? const Color(0xFFFFA726)
+                                                          : const Color(0xFFF44336),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 16),
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(4),
+                                            child: LinearProgressIndicator(
+                                              value: progressPercentage / 100,
+                                              backgroundColor: Colors.grey[200],
+                                              valueColor: AlwaysStoppedAnimation<Color>(
+                                                progressPercentage > 66
+                                                    ? const Color(0xFF4CAF50)
+                                                    : progressPercentage > 33
+                                                        ? const Color(0xFFFFA726)
+                                                        : const Color(0xFFF44336),
+                                              ),
+                                              minHeight: 8,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Row(
+                                            children: [
+                                              _buildTaskCountChip(
+                                                '$pendingTasks',
+                                                'Por hacer',
+                                                Colors.grey[700]!,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              _buildTaskCountChip(
+                                                '$inProcessTasks',
+                                                'En proceso',
+                                                Colors.blue,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              _buildTaskCountChip(
+                                                '$completedTasks',
+                                                'Completadas',
+                                                Colors.green,
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      );
+                                    },
                                   ),
                                 ],
                               ),
+                            ),
+                            const SizedBox(height: 24),
+                            
+                            _buildCardContainer(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
                                     children: [
-                                      Icon(Icons.description_outlined, color: projectColor),
-                                      const SizedBox(width: 12),
-                                      Text(
-                                        'Descripción del Proyecto',
-                                        style: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.grey[800],
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: projectColor.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(12),
                                         ),
+                                        child: Icon(
+                                          Icons.description_outlined,
+                                          color: projectColor,
+                                          size: 22,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Descripción del Proyecto',
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.grey[800],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Detalles y objetivo',
+                                            style: TextStyle(
+                                              color: Colors.grey[600],
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
                                   const SizedBox(height: 24),
-                                  Text(
-                                    projectDescription,
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.grey[700],
-                                      height: 1.6,
+                                  Container(
+                                    padding: const EdgeInsets.all(20),
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[50],
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: Colors.grey.withOpacity(0.1)),
+                                    ),
+                                    child: Text(
+                                      projectDescription,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.grey[700],
+                                        height: 1.6,
+                                      ),
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 32),
-                            Container(
-                              padding: const EdgeInsets.all(32),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(24),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.03),
-                                    blurRadius: 15,
-                                    offset: const Offset(0, 5),
-                                  ),
-                                ],
-                              ),
+                            const SizedBox(height: 24),
+                            
+                            _buildCardContainer(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
                                     children: [
-                                      Icon(Icons.group_outlined, color: projectColor),
-                                      const SizedBox(width: 12),
-                                      Text(
-                                        'Equipo del Proyecto',
-                                        style: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.grey[800],
+                                      Container(
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: projectColor.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(12),
                                         ),
+                                        child: Icon(
+                                          Icons.people_outline,
+                                          color: projectColor,
+                                          size: 22,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'Equipo del Proyecto',
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.grey[800],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Miembros y responsabilidades',
+                                            style: TextStyle(
+                                              color: Colors.grey[600],
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
@@ -402,20 +693,9 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 32),
-                            Container(
-                              padding: const EdgeInsets.all(32),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(24),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.03),
-                                    blurRadius: 15,
-                                    offset: const Offset(0, 5),
-                                  ),
-                                ],
-                              ),
+                            const SizedBox(height: 24),
+                            
+                            _buildCardContainer(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -424,31 +704,57 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
                                     children: [
                                       Row(
                                         children: [
-                                          Icon(Icons.folder_outlined, color: projectColor),
-                                          const SizedBox(width: 12),
-                                          Text(
-                                            'Archivos del Proyecto',
-                                            style: TextStyle(
-                                              fontSize: 20,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.grey[800],
+                                          Container(
+                                            padding: const EdgeInsets.all(10),
+                                            decoration: BoxDecoration(
+                                              color: projectColor.withOpacity(0.1),
+                                              borderRadius: BorderRadius.circular(12),
                                             ),
+                                            child: Icon(
+                                              Icons.folder_outlined,
+                                              color: projectColor,
+                                              size: 22,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 16),
+                                          Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'Archivos del Proyecto',
+                                                style: TextStyle(
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.grey[800],
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                'Documentos adjuntos',
+                                                style: TextStyle(
+                                                  color: Colors.grey[600],
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),
                                       ElevatedButton.icon(
                                         onPressed: () => _showUploadFileDialog(context),
-                                        icon: const Icon(Icons.upload_file, size: 20),
+                                        icon: const Icon(Icons.upload_file_rounded, size: 18),
                                         label: const Text('Subir Archivo'),
                                         style: ElevatedButton.styleFrom(
                                           backgroundColor: projectColor,
                                           foregroundColor: Colors.white,
+                                          elevation: 2,
+                                          shadowColor: projectColor.withOpacity(0.4),
                                           padding: const EdgeInsets.symmetric(
-                                            horizontal: 24,
-                                            vertical: 12,
+                                            horizontal: 16,
+                                            vertical: 10,
                                           ),
                                           shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(30),
+                                            borderRadius: BorderRadius.circular(12),
                                           ),
                                         ),
                                       ),
@@ -459,10 +765,11 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
                                 ],
                               ),
                             ),
+                            
+                            const SizedBox(height: 32),
                           ],
                         ),
                       ),
-                      // Conversación Tab
                       CommentsSection(projectId: widget.projectId),
                     ],
                   ),
@@ -472,6 +779,24 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
           ),
         );
       },
+    );
+  }
+
+  Widget _buildCardContainer({required Widget child}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(24),
+      child: child,
     );
   }
 
@@ -528,7 +853,12 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
           .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+            child: LinearProgressIndicator(
+              backgroundColor: Color(0xFFE0E0E0),
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1E88E5)),
+            ),
+          );
         }
 
         final tasks = snapshot.data!.docs;
@@ -538,95 +868,177 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
             .toSet();
 
         if (userIds.isEmpty) {
-          return Center(
-            child: Column(
-              children: [
-                Icon(Icons.group_off_outlined, size: 48, color: Colors.grey[300]),
-                const SizedBox(height: 16),
-                Text(
-                  'No hay miembros asignados',
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-              ],
+          return Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.withOpacity(0.1)),
+            ),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(Icons.group_off_outlined, size: 48, color: Colors.grey[300]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No hay miembros asignados',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Asigna tareas a los miembros del equipo',
+                    style: TextStyle(
+                      color: Colors.grey[500],
+                      fontSize: 14,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           );
         }
 
-        return ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: userIds.length,
-          itemBuilder: (context, index) {
-            final userId = userIds.elementAt(index);
-            return FutureBuilder<DocumentSnapshot>(
-              future: FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(userId)
-                  .get(),
-              builder: (context, userSnapshot) {
-                if (!userSnapshot.hasData) {
-                  return const SizedBox.shrink();
-                }
+        return StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .where(FieldPath.documentId, whereIn: userIds.toList())
+              .snapshots(),
+          builder: (context, userSnapshot) {
+            if (!userSnapshot.hasData) {
+              return const Center(
+                child: LinearProgressIndicator(
+                  backgroundColor: Color(0xFFE0E0E0),
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1E88E5)),
+                ),
+              );
+            }
 
-                final userData = userSnapshot.data!.data() as Map<String, dynamic>;
+            final users = userSnapshot.data!.docs;
+            
+            return ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: users.length,
+              itemBuilder: (context, index) {
+                final userData = users[index].data() as Map<String, dynamic>;
+                final userId = users[index].id;
                 final userName = userData['displayName'] ?? userData['email'] ?? 'Usuario';
+                final userEmail = userData['email'] ?? '';
+                final userPhotoURL = userData['photoURL'];
+                
                 final userTasks = tasks.where((task) =>
                     (task.data() as Map<String, dynamic>)['assignedTo'] == userId).toList();
+                
+                // Contar tareas por estado
+                final completedTasks = userTasks.where((task) =>
+                    (task.data() as Map<String, dynamic>)['status'] == 'completada').length;
+                
+                final inProgressTasks = userTasks.where((task) =>
+                    (task.data() as Map<String, dynamic>)['status'] == 'en proceso').length;
+                
+                final pendingTasks = userTasks.where((task) =>
+                    (task.data() as Map<String, dynamic>)['status'] == 'por hacer').length;
 
                 return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(16),
+                  margin: const EdgeInsets.only(bottom: 16),
                   decoration: BoxDecoration(
-                    color: Colors.grey[50],
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade100),
-                  ),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        backgroundColor: Colors.blue.shade100,
-                        child: Text(
-                          userName[0].toUpperCase(),
-                          style: TextStyle(
-                            color: Colors.blue.shade700,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.03),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
                           children: [
-                            Text(
-                              userName,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.grey[800],
+                            // Foto o iniciales del usuario
+                            userPhotoURL != null && userPhotoURL.isNotEmpty
+                                ? CircleAvatar(
+                                    radius: 24,
+                                    backgroundImage: NetworkImage(userPhotoURL),
+                                  )
+                                : CircleAvatar(
+                                    radius: 24,
+                                    backgroundColor: const Color(0xFF1976D2).withOpacity(0.2),
+                                    child: Text(
+                                      userName.isNotEmpty ? userName[0].toUpperCase() : '?',
+                                      style: const TextStyle(
+                                        color: Color(0xFF1976D2),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                      ),
+                                    ),
+                                  ),
+                            const SizedBox(width: 16),
+                            
+                            // Información del usuario
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    userName,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                      color: Color(0xFF263238),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    userEmail,
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            Text(
-                              userData['email'] ?? '',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 14,
+                            
+                            // Contador de tareas
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1976D2).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                '${userTasks.length} ${userTasks.length == 1 ? 'tarea' : 'tareas'}',
+                                style: const TextStyle(
+                                  color: Color(0xFF1976D2),
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          '${userTasks.length} ${userTasks.length == 1 ? 'tarea' : 'tareas'}',
-                          style: const TextStyle(
-                            color: Colors.blue,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      
+                      // Separador
+                      const Divider(height: 1, color: Color(0xFFEEEEEE)),
+                      
+                      // Estadísticas de tareas
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _buildTaskTypeChip(pendingTasks, 'Por hacer', Colors.grey[700]!),
+                            _buildTaskTypeChip(inProgressTasks, 'En proceso', Colors.blue),
+                            _buildTaskTypeChip(completedTasks, 'Completadas', Colors.green),
+                          ],
                         ),
                       ),
                     ],
@@ -640,6 +1052,36 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
     );
   }
 
+  Widget _buildTaskTypeChip(int count, String label, Color color) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Text(
+            count.toString(),
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 12,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildFilesList() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -650,21 +1092,46 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
           .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+            child: LinearProgressIndicator(
+              backgroundColor: Color(0xFFE0E0E0),
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1E88E5)),
+            ),
+          );
         }
 
         final files = snapshot.data!.docs;
         if (files.isEmpty) {
-          return Center(
-            child: Column(
-              children: [
-                Icon(Icons.folder_off_outlined, size: 48, color: Colors.grey[300]),
-                const SizedBox(height: 16),
-                Text(
-                  'No hay archivos en este proyecto',
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-              ],
+          return Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.withOpacity(0.1)),
+            ),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(Icons.folder_off_outlined, size: 48, color: Colors.grey[300]),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No hay archivos en este proyecto',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Sube archivos para compartir con el equipo',
+                    style: TextStyle(
+                      color: Colors.grey[500],
+                      fontSize: 14,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           );
         }
@@ -673,10 +1140,10 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 4,
+            crossAxisCount: 3,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
-            childAspectRatio: 1,
+            childAspectRatio: 0.8,
           ),
           itemCount: files.length,
           itemBuilder: (context, index) {
@@ -702,136 +1169,284 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
     switch (fileType?.toLowerCase()) {
       case 'pdf':
         iconData = Icons.picture_as_pdf_outlined;
-        iconColor = Colors.red[400]!;
-        bgColor = Colors.red[50]!;
+        iconColor = const Color(0xFFF44336);
+        bgColor = const Color(0xFFF44336).withOpacity(0.1);
         break;
       case 'doc':
       case 'docx':
         iconData = Icons.description_outlined;
-        iconColor = Colors.blue[400]!;
-        bgColor = Colors.blue[50]!;
+        iconColor = const Color(0xFF2196F3);
+        bgColor = const Color(0xFF2196F3).withOpacity(0.1);
         break;
       case 'xls':
       case 'xlsx':
         iconData = Icons.table_chart_outlined;
-        iconColor = Colors.green[400]!;
-        bgColor = Colors.green[50]!;
+        iconColor = const Color(0xFF4CAF50);
+        bgColor = const Color(0xFF4CAF50).withOpacity(0.1);
         break;
       case 'jpg':
       case 'jpeg':
       case 'png':
         iconData = Icons.image_outlined;
-        iconColor = Colors.purple[400]!;
-        bgColor = Colors.purple[50]!;
+        iconColor = const Color(0xFF9C27B0);
+        bgColor = const Color(0xFF9C27B0).withOpacity(0.1);
         break;
       default:
         iconData = Icons.insert_drive_file_outlined;
-        iconColor = Colors.grey[400]!;
-        bgColor = Colors.grey[50]!;
+        iconColor = const Color(0xFF607D8B);
+        bgColor = const Color(0xFF607D8B).withOpacity(0.1);
     }
 
-    return InkWell(
-      onTap: () => _downloadFile(fileData['url'] as String, fileName),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.withOpacity(0.2)),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: bgColor,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                iconData,
-                size: 32,
-                color: iconColor,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              fileName,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[800],
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _formatFileSize(fileSize),
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 8),
-            FutureBuilder<DocumentSnapshot>(
-              future: FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(uploaderId)
-                  .get(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return const SizedBox.shrink();
-                }
-
-                final userData = snapshot.data!.data() as Map<String, dynamic>;
-                final uploaderName = userData['displayName'] ?? userData['email'] ?? 'Usuario';
-
-                return Column(
-                  children: [
-                    Text(
-                      DateFormat('dd MMM yyyy').format(uploadDate),
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey[500],
-                      ),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => _downloadFile(fileData['url'] as String, fileName),
+            splashColor: bgColor,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Ícono del archivo
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: bgColor,
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.download_rounded),
-                          iconSize: 20,
+                    child: Icon(
+                      iconData,
+                      size: 36,
+                      color: iconColor,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Nombre del archivo
+                  Text(
+                    fileName,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF263238),
+                      fontSize: 14,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 6),
+                  
+                  // Tamaño del archivo
+                  Text(
+                    _formatFileSize(fileSize),
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Fecha de subida
+                  Text(
+                    DateFormat('dd MMM yyyy').format(uploadDate),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey[500],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // Botones de acción
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.download_rounded),
+                        iconSize: 20,
+                        style: IconButton.styleFrom(
+                          backgroundColor: const Color(0xFF2196F3).withOpacity(0.1),
+                          foregroundColor: const Color(0xFF2196F3),
                           padding: const EdgeInsets.all(8),
-                          style: IconButton.styleFrom(
-                            backgroundColor: Colors.blue.withOpacity(0.1),
-                          ),
-                          onPressed: () => _downloadFile(fileData['url'] as String, fileName),
+                          minimumSize: const Size(0, 0),
                         ),
-                        if (uploaderId == FirebaseAuth.instance.currentUser?.uid)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 8),
-                            child: IconButton(
-                              icon: const Icon(Icons.delete_outline),
-                              iconSize: 20,
+                        onPressed: () => _downloadFile(fileData['url'] as String, fileName),
+                      ),
+                      if (uploaderId == FirebaseAuth.instance.currentUser?.uid)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: IconButton(
+                            icon: const Icon(Icons.delete_outline),
+                            iconSize: 20,
+                            style: IconButton.styleFrom(
+                              backgroundColor: const Color(0xFFF44336).withOpacity(0.1),
+                              foregroundColor: const Color(0xFFF44336),
                               padding: const EdgeInsets.all(8),
-                              style: IconButton.styleFrom(
-                                backgroundColor: Colors.red.withOpacity(0.1),
-                              ),
-                              onPressed: () => _showDeleteFileConfirmation(fileId, fileName),
+                              minimumSize: const Size(0, 0),
                             ),
+                            onPressed: () => _showDeleteFileConfirmation(fileId, fileName),
                           ),
-                      ],
-                    ),
-                  ],
-                );
-              },
+                        ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ],
+          ),
         ),
       ),
     );
+  }
+
+  Future<void> _showDeleteFileConfirmation(String fileId, String fileName) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Eliminar archivo'),
+        content: RichText(
+          text: TextSpan(
+            style: TextStyle(
+              color: Colors.grey[800],
+              fontSize: 16,
+            ),
+            children: [
+              const TextSpan(text: '¿Estás seguro de que quieres eliminar '),
+              TextSpan(
+                text: fileName,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const TextSpan(text: '?'),
+            ],
+          ),
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              'Cancelar',
+              style: TextStyle(
+                color: Colors.grey[700],
+              ),
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.delete_outline, size: 18),
+            label: const Text('Eliminar'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFF44336),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete != true) return;
+
+    try {
+      // Mostrar indicador de carga
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1E88E5)),
+          ),
+        ),
+      );
+
+      final fileRef = await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(widget.projectId)
+          .collection('files')
+          .doc(fileId)
+          .get();
+
+      final fileData = fileRef.data();
+      if (fileData != null) {
+        final storageRef = FirebaseStorage.instance.refFromURL(fileData['url'] as String);
+        await storageRef.delete();
+      }
+
+      await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(widget.projectId)
+          .collection('files')
+          .doc(fileId)
+          .delete();
+
+      if (!mounted) return;
+      Navigator.pop(context); // Cerrar diálogo de carga
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_outline, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text('El archivo "$fileName" ha sido eliminado'),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF4CAF50),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      );
+    } catch (e) {
+      print('Error al eliminar archivo: $e');
+      if (!mounted) return;
+      
+      // Cerrar diálogo de carga si está abierto
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text('Error al eliminar el archivo: ${e.toString()}'),
+              ),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _showUploadFileDialog(BuildContext context) async {
@@ -848,9 +1463,21 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
       if (file.size > 10 * 1024 * 1024) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('El archivo es demasiado grande. El tamaño máximo es 10MB'),
-            backgroundColor: Colors.red,
+          SnackBar(
+            content: Row(
+              children: const [
+                Icon(Icons.warning_amber_rounded, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text('El archivo es demasiado grande. El tamaño máximo es 10MB'),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFFF44336),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
           ),
         );
         return;
@@ -860,7 +1487,11 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (context) => const Center(child: CircularProgressIndicator()),
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1E88E5)),
+          ),
+        ),
       );
 
       final user = FirebaseAuth.instance.currentUser;
@@ -868,7 +1499,10 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
         if (!mounted) return;
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Debes iniciar sesión para subir archivos')),
+          const SnackBar(
+            content: Text('Debes iniciar sesión para subir archivos'),
+            backgroundColor: Color(0xFFF44336),
+          ),
         );
         return;
       }
@@ -908,86 +1542,48 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
       if (!mounted) return;
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Archivo subido correctamente'),
-          backgroundColor: Colors.green,
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_outline, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text('El archivo "${file.name}" se ha subido correctamente'),
+              ),
+            ],
+          ),
+          backgroundColor: const Color(0xFF4CAF50),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
         ),
       );
     } catch (e) {
       print('Error al subir archivo: $e');
       if (!mounted) return;
+      
+      // Cerrar diálogo de carga si está abierto
       if (Navigator.canPop(context)) {
         Navigator.pop(context);
       }
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al subir el archivo: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  Future<void> _showDeleteFileConfirmation(String fileId, String fileName) async {
-    final shouldDelete = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Eliminar archivo'),
-        content: Text('¿Estás seguro de que quieres eliminar "$fileName"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text('Error al subir el archivo: ${e.toString()}'),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Eliminar'),
+          backgroundColor: const Color(0xFFF44336),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
           ),
-        ],
-      ),
-    );
-
-    if (shouldDelete != true) return;
-
-    try {
-      final fileRef = await FirebaseFirestore.instance
-          .collection('projects')
-          .doc(widget.projectId)
-          .collection('files')
-          .doc(fileId)
-          .get();
-
-      final fileData = fileRef.data();
-      if (fileData != null) {
-        final storageRef = FirebaseStorage.instance.refFromURL(fileData['url'] as String);
-        await storageRef.delete();
-      }
-
-      await FirebaseFirestore.instance
-          .collection('projects')
-          .doc(widget.projectId)
-          .collection('files')
-          .doc(fileId)
-          .delete();
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Archivo eliminado correctamente'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      print('Error al eliminar archivo: $e');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error al eliminar el archivo'),
-          backgroundColor: Colors.red,
         ),
       );
     }
@@ -1050,5 +1646,146 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
       hexColor = 'FF' + hexColor;
     }
     return Color(int.parse(hexColor, radix: 16));
+  }
+
+  Widget _buildTaskCountChip(String count, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              count,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusChangeButton(String currentStatus) {
+    return PopupMenuButton<String>(
+      tooltip: 'Cambiar estado',
+      icon: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          Icons.edit_outlined,
+          size: 18,
+          color: Colors.grey[700],
+        ),
+      ),
+      onSelected: (String newStatus) {
+        _updateProjectStatus(newStatus);
+      },
+      itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+        const PopupMenuItem<String>(
+          value: 'En progreso',
+          child: Row(
+            children: [
+              Icon(Icons.trending_up, color: Colors.blue, size: 18),
+              SizedBox(width: 8),
+              Text('En progreso'),
+            ],
+          ),
+        ),
+        const PopupMenuItem<String>(
+          value: 'Completado',
+          child: Row(
+            children: [
+              Icon(Icons.check_circle_outline, color: Colors.green, size: 18),
+              SizedBox(width: 8),
+              Text('Completado'),
+            ],
+          ),
+        ),
+        const PopupMenuItem<String>(
+          value: 'Pausado',
+          child: Row(
+            children: [
+              Icon(Icons.pause_circle_outline, color: Colors.orange, size: 18),
+              SizedBox(width: 8),
+              Text('Pausado'),
+            ],
+          ),
+        ),
+        const PopupMenuItem<String>(
+          value: 'Retrasado',
+          child: Row(
+            children: [
+              Icon(Icons.warning_outlined, color: Colors.red, size: 18),
+              SizedBox(width: 8),
+              Text('Retrasado'),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _updateProjectStatus(String newStatus) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('projects')
+          .doc(widget.projectId)
+          .update({'status': newStatus});
+
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Estado del proyecto actualizado a "$newStatus"'),
+          backgroundColor: _getStatusColor(newStatus),
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      );
+    } catch (e) {
+      print('Error al actualizar el estado del proyecto: $e');
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al actualizar el estado: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+      );
+    }
   }
 } 

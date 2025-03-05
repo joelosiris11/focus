@@ -10,12 +10,20 @@ class AuthService {
   Future<User?> signInWithGoogle() async {
     try {
       print('Iniciando el proceso de inicio de sesión con Google...');
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      
+      // Intentar signInSilently primero
+      GoogleSignInAccount? googleUser = await _googleSignIn.signInSilently();
+      
+      // Si no hay una sesión silenciosa activa, entonces usar signIn
       if (googleUser == null) {
-        print('El usuario canceló el inicio de sesión.');
-        return null; // El usuario canceló el inicio de sesión
+        googleUser = await _googleSignIn.signIn();
+        if (googleUser == null) {
+          print('El usuario canceló el inicio de sesión.');
+          return null; // El usuario canceló el inicio de sesión
+        }
       }
-      print('Usuario autenticado: ${googleUser.email}');
+      
+      print('Usuario autenticado con Google: ${googleUser.email}');
 
       final GoogleSignInAuthentication? googleAuth = await googleUser.authentication;
       print('Autenticación de Google obtenida.');
@@ -39,16 +47,21 @@ class AuthService {
           await _createNewUser(user);
         } else {
           print('El usuario ya existe en Firestore.');
+          // Actualizar última fecha de inicio de sesión
+          await _firestore.collection('users').doc(user.uid).update({
+            'lastLogin': FieldValue.serverTimestamp(),
+          });
         }
 
         return user;
       } else {
-        print('No se pudo iniciar sesión, el usuario es nulo.');
+        print('Error: No se pudo obtener el usuario después de la autenticación.');
+        return null;
       }
     } catch (e) {
-      print('Error durante el inicio de sesión: $e');
+      print('Error en signInWithGoogle: $e');
+      return null;
     }
-    return null;
   }
 
   Future<void> _createNewUser(User user) async {

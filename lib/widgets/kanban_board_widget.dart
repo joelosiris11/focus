@@ -3,8 +3,9 @@ import 'package:flutter/gestures.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'dart:math' as math;
 
-class KanbanBoard extends StatelessWidget {
+class KanbanBoard extends StatefulWidget {
   final String projectId;
   final Color projectColor;
 
@@ -13,6 +14,29 @@ class KanbanBoard extends StatelessWidget {
     required this.projectId,
     required this.projectColor,
   }) : super(key: key);
+
+  @override
+  _KanbanBoardState createState() => _KanbanBoardState();
+}
+
+class _KanbanBoardState extends State<KanbanBoard> {
+  String? _filterUser;
+  String? _filterPriority;
+  bool _showOverdue = false;
+  bool _isFiltering = false;
+  late ScrollController _scrollController;
+  
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+  }
+  
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   Future<void> _updateTaskStatus(String taskId, String newStatus) async {
     try {
@@ -27,214 +51,674 @@ class KanbanBoard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.7,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('tasks')
-            .where('projectId', isEqualTo: projectId)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+    return Column(
+      children: [
+        if (_isFiltering) _buildFilterBar(),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              ElevatedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _isFiltering = !_isFiltering;
+                    if (!_isFiltering) {
+                      // Resetear filtros al cerrar
+                      _filterUser = null;
+                      _filterPriority = null;
+                      _showOverdue = false;
+                    }
+                  });
+                },
+                icon: Icon(
+                  _isFiltering ? Icons.filter_list_off : Icons.filter_list,
+                  size: 18,
+                ),
+                label: Text(_isFiltering ? "Ocultar filtros" : "Filtrar tareas"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: widget.projectColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
               ),
-            );
-          }
-
-          final tasks = snapshot.data!.docs;
-          
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildDraggableColumn(context, '🎯 Por hacer', tasks, 'por hacer', projectColor),
-                _buildDraggableColumn(context, '⚡ En proceso', tasks, 'en proceso', projectColor),
-                _buildDraggableColumn(context, '👀 En revisión', tasks, 'en revision', projectColor),
-                _buildDraggableColumn(context, '✨ Completado', tasks, 'completada', projectColor),
-              ],
+            ],
+          ),
+        ),
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5F7FA),
+              borderRadius: BorderRadius.circular(16),
             ),
-          );
-        },
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('tasks')
+                  .where('projectId', isEqualTo: widget.projectId)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                    ),
+                  );
+                }
+
+                var tasks = snapshot.data!.docs;
+                
+                // Aplicar filtros si están activos
+                if (_filterUser != null) {
+                  tasks = tasks.where((task) {
+                    final data = task.data() as Map<String, dynamic>;
+                    return data['assignedTo'] == _filterUser;
+                  }).toList();
+                }
+                
+                if (_filterPriority != null) {
+                  tasks = tasks.where((task) {
+                    final data = task.data() as Map<String, dynamic>;
+                    return data['priority'] == _filterPriority;
+                  }).toList();
+                }
+                
+                if (_showOverdue) {
+                  final now = DateTime.now();
+                  tasks = tasks.where((task) {
+                    final data = task.data() as Map<String, dynamic>;
+                    final dueDate = (data['dueDate'] as Timestamp?)?.toDate();
+                    final status = data['status']?.toString().toLowerCase();
+                    return dueDate != null && 
+                           dueDate.isBefore(now) && 
+                           status != 'completada';
+                  }).toList();
+                }
+                
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    final columnWidth = 320.0;
+                    final totalWidth = columnWidth * 4 + 48.0; // 4 columnas + espaciado
+                    
+                    return SingleChildScrollView(
+                      controller: _scrollController,
+                      scrollDirection: Axis.horizontal,
+                      child: Container(
+                        width: math.max(constraints.maxWidth, totalWidth),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: _buildKanbanColumn('por hacer', '🎯 Por hacer', tasks, Colors.amber, Icons.assignment_outlined),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: _buildKanbanColumn('en proceso', '⚡ En proceso', tasks, Colors.blue, Icons.trending_up_outlined),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: _buildKanbanColumn('en revision', '👀 En revisión', tasks, Colors.purple, Icons.remove_red_eye_outlined),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: _buildKanbanColumn('completada', '✨ Completado', tasks, Colors.green, Icons.check_circle_outline),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildFilterBar() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Filtros de tareas",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildUserFilter(),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildPriorityFilter(),
+              ),
+              const SizedBox(width: 12),
+              _buildOverdueFilter(),
+            ],
+          ),
+        ],
       ),
     );
   }
+  
+  Widget _buildUserFilter() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const SizedBox.shrink();
+        }
+        
+        final users = snapshot.data!.docs;
+        
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey[300]!),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String?>(
+              value: _filterUser,
+              isExpanded: true,
+              hint: const Text("Filtrar por usuario"),
+              items: [
+                const DropdownMenuItem<String?>(
+                  value: null,
+                  child: Text("Todos los usuarios"),
+                ),
+                ...users.map((user) {
+                  final userData = user.data() as Map<String, dynamic>;
+                  final displayName = userData['displayName'] ?? userData['email'] ?? 'Usuario';
+                  return DropdownMenuItem<String?>(
+                    value: user.id,
+                    child: Text(displayName, overflow: TextOverflow.ellipsis),
+                  );
+                }).toList(),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  _filterUser = value;
+                });
+              },
+            ),
+          ),
+        );
+      }
+    );
+  }
+  
+  Widget _buildPriorityFilter() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String?>(
+          value: _filterPriority,
+          isExpanded: true,
+          hint: const Text("Filtrar por prioridad"),
+          items: const [
+            DropdownMenuItem<String?>(
+              value: null,
+              child: Text("Todas las prioridades"),
+            ),
+            DropdownMenuItem<String?>(
+              value: "Alta",
+              child: Text("Alta"),
+            ),
+            DropdownMenuItem<String?>(
+              value: "Media",
+              child: Text("Media"),
+            ),
+            DropdownMenuItem<String?>(
+              value: "Baja",
+              child: Text("Baja"),
+            ),
+          ],
+          onChanged: (value) {
+            setState(() {
+              _filterPriority = value;
+            });
+          },
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildOverdueFilter() {
+    return FilterChip(
+      selected: _showOverdue,
+      label: const Text("Vencidas"),
+      avatar: Icon(
+        Icons.warning_amber_rounded,
+        color: _showOverdue ? Colors.white : Colors.red,
+        size: 18,
+      ),
+      selectedColor: Colors.red,
+      checkmarkColor: Colors.white,
+      labelStyle: TextStyle(
+        color: _showOverdue ? Colors.white : Colors.black87,
+        fontWeight: _showOverdue ? FontWeight.bold : FontWeight.normal,
+      ),
+      onSelected: (selected) {
+        setState(() {
+          _showOverdue = selected;
+        });
+      },
+    );
+  }
 
-  Widget _buildDraggableColumn(BuildContext context, String title, List<QueryDocumentSnapshot> tasks, String status, Color color) {
-    final columnTasks = tasks.where((task) {
+  Widget _buildKanbanColumn(String status, String title, List<QueryDocumentSnapshot> allTasks, Color color, IconData icon) {
+    final columnTasks = allTasks.where((task) {
       final data = task.data() as Map<String, dynamic>;
       return data['status']?.toString().toLowerCase() == status.toLowerCase();
     }).toList();
+
+    // Calcular tareas vencidas
+    final now = DateTime.now();
+    final overdueTasks = columnTasks.where((task) {
+      final data = task.data() as Map<String, dynamic>;
+      final dueDate = (data['dueDate'] as Timestamp?)?.toDate();
+      return dueDate != null && dueDate.isBefore(now) && status != 'completada';
+    }).length;
 
     return DragTarget<String>(
       onWillAccept: (data) => true,
       onAccept: (taskId) {
         _updateTaskStatus(taskId, status);
       },
-      builder: (context, candidateData, rejectedData) => Container(
-        width: 320,
-        margin: const EdgeInsets.symmetric(horizontal: 8),
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.7,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              blurRadius: 10,
-              spreadRadius: 0,
+      builder: (context, candidateData, rejectedData) {
+        // Destacar la columna cuando se esté arrastrando una tarea sobre ella
+        final isTargeted = candidateData.isNotEmpty;
+        
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          decoration: BoxDecoration(
+            color: isTargeted 
+                ? color.withOpacity(0.05) 
+                : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isTargeted 
+                  ? color 
+                  : Colors.grey.withOpacity(0.2),
+              width: isTargeted ? 2 : 1,
             ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border(
-                  bottom: BorderSide(color: Colors.grey.shade100),
-                ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: color,
-                    ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Cabecera de la columna
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(19)),
+                  border: Border(
+                    bottom: BorderSide(color: color.withOpacity(0.2)),
                   ),
-                  Row(
-                    children: [
-                      if (status == 'por hacer') // Solo mostrar el botón en la columna "Por hacer"
-                        IconButton(
-                          icon: Icon(Icons.add_circle_outline, color: color),
-                          onPressed: () {
-                            showDialog(
-                              context: context,
-                              builder: (context) => AddTaskDialog(
-                                onTaskCreated: (taskData) async {
-                                  try {
-                                    // Crear la tarea en Firestore
-                                    final taskRef = await FirebaseFirestore.instance.collection('tasks').add({
-                                      ...taskData,
-                                      'projectId': projectId,
-                                      'status': 'por hacer',
-                                      'createdAt': Timestamp.now(),
-                                    });
-
-                                    // Actualizar userTasks
-                                    await FirebaseFirestore.instance
-                                        .collection('userTasks')
-                                        .doc(taskData['assignedTo'])
-                                        .set({
-                                      'tasks': FieldValue.arrayUnion([taskRef.id]),
-                                    }, SetOptions(merge: true));
-
-                                    // Actualizar taskSummaries
-                                    await FirebaseFirestore.instance
-                                        .collection('taskSummaries')
-                                        .doc(taskData['assignedTo'])
-                                        .set({
-                                      'totalTasks': FieldValue.increment(1),
-                                      'pendingTasks': FieldValue.increment(1),
-                                      'myTasks': FieldValue.increment(1),
-                                    }, SetOptions(merge: true));
-
-                                  } catch (e) {
-                                    print('Error al crear la tarea: $e');
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Error al crear la tarea')),
-                                    );
-                                  }
-                                },
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Row(
+                            children: [
+                              Icon(icon, color: color),
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: Text(
+                                  title,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                    color: color,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                            );
-                          },
+                            ],
+                          ),
                         ),
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: color.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: color.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '${columnTasks.length}',
+                            style: TextStyle(
+                              color: color,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
-                        child: Text(
-                          '${columnTasks.length}',
-                          style: TextStyle(
-                            color: color,
-                            fontWeight: FontWeight.bold,
+                      ],
+                    ),
+                    
+                    if (status == 'por hacer') // Solo mostrar el botón en la columna "Por hacer"
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            icon: Icon(Icons.add, size: 18, color: color),
+                            label: const Text("Nueva tarea", style: TextStyle(fontSize: 13)),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: color,
+                              side: BorderSide(color: color),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                            ),
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder: (context) => AddTaskDialog(
+                                  onTaskCreated: (taskData) async {
+                                    try {
+                                      // Crear la tarea en Firestore
+                                      final taskRef = await FirebaseFirestore.instance.collection('tasks').add({
+                                        ...taskData,
+                                        'projectId': widget.projectId,
+                                        'status': 'por hacer',
+                                        'createdAt': Timestamp.now(),
+                                      });
+
+                                      // Actualizar userTasks
+                                      await FirebaseFirestore.instance
+                                          .collection('userTasks')
+                                          .doc(taskData['assignedTo'])
+                                          .set({
+                                        'tasks': FieldValue.arrayUnion([taskRef.id]),
+                                      }, SetOptions(merge: true));
+
+                                      // Actualizar taskSummaries
+                                      await FirebaseFirestore.instance
+                                          .collection('taskSummaries')
+                                          .doc(taskData['assignedTo'])
+                                          .set({
+                                        'totalTasks': FieldValue.increment(1),
+                                        'pendingTasks': FieldValue.increment(1),
+                                        'myTasks': FieldValue.increment(1),
+                                      }, SetOptions(merge: true));
+
+                                    } catch (e) {
+                                      print('Error al crear la tarea: $e');
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Error al crear la tarea')),
+                                      );
+                                    }
+                                  },
+                                ),
+                              );
+                            },
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ],
+                    
+                    // Mostrar indicador de tareas vencidas si hay alguna
+                    if (overdueTasks > 0 && status != 'completada')
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: Colors.red.withOpacity(0.3)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.warning_amber_rounded,
+                                color: Colors.red,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                "$overdueTasks ${overdueTasks == 1 ? 'tarea vencida' : 'tareas vencidas'}",
+                                style: const TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Column(
-                    children: columnTasks.map((task) => _buildDraggableTask(context, task, color)).toList(),
+              
+              // Lista de tareas
+              Flexible(
+                child: Container(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.6,
+                  ),
+                  child: Scrollbar(
+                    thickness: 4,
+                    radius: const Radius.circular(2),
+                    child: columnTasks.isEmpty 
+                      ? _buildEmptyColumn(status, color)
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(12),
+                          shrinkWrap: true,
+                          itemCount: columnTasks.length,
+                          itemBuilder: (context, index) {
+                            return _buildDraggableTask(
+                              context, 
+                              columnTasks[index], 
+                              color, 
+                              index == columnTasks.length - 1
+                            );
+                          },
+                        ),
                   ),
                 ),
               ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+  
+  Widget _buildEmptyColumn(String status, Color color) {
+    String message;
+    IconData iconData;
+    
+    switch(status) {
+      case 'por hacer':
+        message = "Agrega nuevas tareas para comenzar";
+        iconData = Icons.post_add_outlined;
+        break;
+      case 'en proceso':
+        message = "Mueve tareas aquí cuando estén en desarrollo";
+        iconData = Icons.engineering_outlined;
+        break;
+      case 'en revision':
+        message = "Las tareas que necesitan revisión irán aquí";
+        iconData = Icons.preview_outlined;
+        break;
+      case 'completada':
+        message = "Las tareas terminadas aparecerán aquí";
+        iconData = Icons.task_alt_outlined;
+        break;
+      default:
+        message = "No hay tareas en esta columna";
+        iconData = Icons.inbox_outlined;
+    }
+    
+    return Container(
+      padding: const EdgeInsets.all(24),
+      width: double.infinity,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            iconData,
+            size: 48,
+            color: color.withOpacity(0.3),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 14,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildDraggableTask(BuildContext context, QueryDocumentSnapshot task, Color color) {
+  Widget _buildDraggableTask(BuildContext context, QueryDocumentSnapshot task, Color columnColor, bool isLastItem) {
+    final data = task.data() as Map<String, dynamic>;
+    
+    // Verificar si la tarea está vencida
+    final dueDate = (data['dueDate'] as Timestamp?)?.toDate();
+    final isOverdue = dueDate != null && 
+                     dueDate.isBefore(DateTime.now()) && 
+                     data['status']?.toString().toLowerCase() != 'completada';
+    
+    // Definir el color de la prioridad
+    Color priorityColor;
+    switch((data['priority'] ?? 'Media').toString()) {
+      case 'Alta':
+        priorityColor = Colors.red;
+        break;
+      case 'Media':
+        priorityColor = Colors.orange;
+        break;
+      case 'Baja':
+        priorityColor = Colors.green;
+        break;
+      default:
+        priorityColor = Colors.blue;
+    }
+
     return Draggable<String>(
       data: task.id,
       feedback: Material(
-        elevation: 4,
+        elevation: 8,
+        borderRadius: BorderRadius.circular(16),
         child: Container(
           width: 300,
-          child: _buildTaskCard(context, task, color),
+          child: _buildTaskCard(
+            context, 
+            task, 
+            columnColor, 
+            priorityColor, 
+            isOverdue,
+          ),
         ),
       ),
       childWhenDragging: Opacity(
-        opacity: 0.5,
-        child: _buildTaskCard(context, task, color),
+        opacity: 0.2,
+        child: _buildTaskCard(
+          context, 
+          task, 
+          columnColor, 
+          priorityColor, 
+          isOverdue,
+        ),
       ),
-      child: _buildTaskCard(context, task, color),
+      child: _buildTaskCard(
+        context, 
+        task, 
+        columnColor, 
+        priorityColor, 
+        isOverdue,
+      ),
     );
   }
 
-  Widget _buildTaskCard(BuildContext context, QueryDocumentSnapshot task, Color color) {
+  Widget _buildTaskCard(
+    BuildContext context, 
+    QueryDocumentSnapshot task, 
+    Color columnColor,
+    Color priorityColor,
+    bool isOverdue,
+  ) {
     final data = task.data() as Map<String, dynamic>;
-    final createdAt = data['createdAt'] as Timestamp?;
-    final formattedDate = createdAt != null 
-        ? '${createdAt.toDate().day}/${createdAt.toDate().month}/${createdAt.toDate().year}'
-        : 'Fecha no disponible';
+    final dueDate = (data['dueDate'] as Timestamp?)?.toDate();
+    
+    // Calcular días restantes
+    String dueText = 'Sin fecha';
+    if (dueDate != null) {
+      final difference = dueDate.difference(DateTime.now()).inDays;
+      if (difference < 0) {
+        dueText = 'Vencido hace ${-difference} ${-difference == 1 ? 'día' : 'días'}';
+      } else if (difference == 0) {
+        dueText = 'Vence hoy';
+      } else {
+        dueText = 'En $difference ${difference == 1 ? 'día' : 'días'}';
+      }
+    }
 
     return Container(
-      margin: EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: isOverdue 
+            ? Border.all(color: Colors.red, width: 1.5)
+            : null,
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.1),
+            color: isOverdue
+                ? Colors.red.withOpacity(0.1)
+                : Colors.black.withOpacity(0.05),
             blurRadius: 8,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -246,7 +730,7 @@ class KanbanBoard extends StatelessWidget {
             onTap: () {
               showDialog(
                 context: context,
-                builder: (context) => TaskDetailsDialog(task: task, color: projectColor),
+                builder: (context) => TaskDetailsDialog(task: task, color: widget.projectColor),
               );
             },
             child: Padding(
@@ -254,130 +738,224 @@ class KanbanBoard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: color.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          data['priority']?.toString().toUpperCase() ?? 'MEDIA',
-                          style: TextStyle(
-                            color: color,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                  // Fila superior con prioridad y horas
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Indicador de prioridad
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: priorityColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: priorityColor.withOpacity(0.3),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.flag_outlined,
+                                color: priorityColor,
+                                size: 12,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                data['priority']?.toString().toUpperCase() ?? 'MEDIA',
+                                style: TextStyle(
+                                  color: priorityColor,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ),
-                      Spacer(),
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.timer, size: 12, color: Colors.grey[600]),
-                            SizedBox(width: 4),
-                            Text(
-                              '${data['hours'] ?? 0}h',
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                        
+                        const SizedBox(width: 8),
+                        
+                        // Horas estimadas
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.timer_outlined,
+                                size: 12,
+                                color: Colors.grey[600]
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 4),
+                              Text(
+                                '${data['hours'] ?? 0}h',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                      SizedBox(width: 8),
-                      Icon(Icons.more_vert, color: Colors.grey[400]),
-                    ],
+                      ],
+                    ),
                   ),
-                  SizedBox(height: 12),
+                  
+                  const SizedBox(height: 12),
+                  
+                  // Título de la tarea
                   Text(
                     data['title'] ?? 'Sin título',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    data['description'] ?? 'Sin descripción',
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 14,
+                      decoration: data['status']?.toString().toLowerCase() == 'completada'
+                          ? TextDecoration.lineThrough
+                          : null,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  SizedBox(height: 16),
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 12,
-                        backgroundColor: color.withOpacity(0.2),
-                        child: Icon(
-                          Icons.person_outline,
-                          size: 16,
-                          color: color,
-                        ),
+                  
+                  const SizedBox(height: 8),
+                  
+                  // Descripción
+                  if (data['description'] != null && data['description'].toString().isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[50],
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: StreamBuilder<DocumentSnapshot>(
+                      child: Text(
+                        data['description'] ?? 'Sin descripción',
+                        style: TextStyle(
+                          color: Colors.grey[700],
+                          fontSize: 13,
+                          height: 1.3,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  
+                  const SizedBox(height: 16),
+                  
+                  // Información de usuario y fecha
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Usuario asignado
+                        StreamBuilder<DocumentSnapshot>(
                           stream: FirebaseFirestore.instance
                               .collection('users')
                               .doc(data['assignedTo'])
                               .snapshots(),
                           builder: (context, snapshot) {
                             if (!snapshot.hasData) {
-                              return Text(
-                                'Cargando...',
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 12,
-                                ),
+                              return const CircleAvatar(
+                                radius: 14,
+                                backgroundColor: Colors.grey,
+                                child: Icon(Icons.person, size: 14, color: Colors.white),
                               );
                             }
 
                             final userData = snapshot.data!.data() as Map<String, dynamic>?;
                             final userName = userData?['displayName'] ?? userData?['email'] ?? 'Sin asignar';
-
-                            return Text(
-                              userName,
-                              style: TextStyle(
-                                color: Colors.grey[600],
-                                fontSize: 12,
-                              ),
-                              overflow: TextOverflow.ellipsis,
+                            final photoURL = userData?['photoURL'];
+                            
+                            return Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                photoURL != null && photoURL.toString().isNotEmpty
+                                  ? CircleAvatar(
+                                      radius: 14,
+                                      backgroundImage: NetworkImage(photoURL),
+                                    )
+                                  : CircleAvatar(
+                                      radius: 14,
+                                      backgroundColor: columnColor.withOpacity(0.2),
+                                      child: Text(
+                                        userName[0].toUpperCase(),
+                                        style: TextStyle(
+                                          color: columnColor,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                const SizedBox(width: 8),
+                                ConstrainedBox(
+                                  constraints: BoxConstraints(maxWidth: 100),
+                                  child: Text(
+                                    userName,
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
                             );
                           },
                         ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.calendar_today_outlined,
-                        size: 14,
-                        color: Colors.grey[400],
-                      ),
-                      SizedBox(width: 4),
-                      Text(
-                        formattedDate,
-                        style: TextStyle(
-                          color: Colors.grey[400],
-                          fontSize: 12,
+                        
+                        const SizedBox(width: 12),
+                        
+                        // Fecha de vencimiento con indicador visual
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isOverdue 
+                                ? Colors.red.withOpacity(0.1) 
+                                : dueDate != null && dueDate.difference(DateTime.now()).inDays < 2
+                                    ? Colors.orange.withOpacity(0.1)
+                                    : Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                isOverdue 
+                                    ? Icons.warning_amber_rounded 
+                                    : Icons.event_outlined,
+                                size: 12,
+                                color: isOverdue 
+                                    ? Colors.red 
+                                    : dueDate != null && dueDate.difference(DateTime.now()).inDays < 2
+                                        ? Colors.orange
+                                        : Colors.blue,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                dueText,
+                                style: TextStyle(
+                                  color: isOverdue 
+                                      ? Colors.red 
+                                      : dueDate != null && dueDate.difference(DateTime.now()).inDays < 2
+                                          ? Colors.orange
+                                          : Colors.blue,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),

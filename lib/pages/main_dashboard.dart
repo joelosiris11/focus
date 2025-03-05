@@ -8,6 +8,9 @@ import 'package:rxdart/rxdart.dart';
 import 'configuration_page.dart';
 import 'activities_page.dart';
 import 'my_projects_page.dart';
+import 'dart:ui' as ui;
+import 'package:flutter/rendering.dart' as ui;
+import 'package:flutter/rendering.dart';
 
 class MainDashboard extends StatefulWidget {
   const MainDashboard({super.key});
@@ -56,42 +59,59 @@ class _MainDashboardState extends State<MainDashboard> with WidgetsBindingObserv
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Row(
-        children: [
-          const NavigationSidebar(),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    DashboardHeader(),
-                    const SizedBox(height: 24),
-                    StatusCardsRow(),
-                    const SizedBox(height: 24),
-                    Row(
+    return WillPopScope(
+      onWillPop: () async {
+        // Return false to prevent the back gesture
+        return false;
+      },
+      child: Scaffold(
+        body: Row(
+          children: [
+            const NavigationSidebar(),
+            Expanded(
+              child: Container(
+                height: MediaQuery.of(context).size.height,
+                child: SingleChildScrollView(
+                  // Disable bounce physics that could trigger navigation gestures
+                  physics: const ClampingScrollPhysics(),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          flex: 2,
-                          child: ProjectsList(),
+                        DashboardHeader(),
+                        const SizedBox(height: 24),
+                        StatusCardsRow(),
+                        const SizedBox(height: 24),
+                        SizedBox(
+                          height: 620, // Altura fija para la fila
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                flex: 2,
+                                child: ProjectsList(),
+                              ),
+                              const SizedBox(width: 24),
+                              Expanded(
+                                child: ProjectStatistics(),
+                              ),
+                            ],
+                          ),
                         ),
-                        const SizedBox(width: 24),
-                        Expanded(
-                          child: ProjectStatistics(),
+                        const SizedBox(height: 24),
+                        SizedBox(
+                          height: 500, // Volvemos a usar altura fija para esta sección
+                          child: ProjectsOverviewTable(),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 24),
-                    ProjectsOverviewTable(),
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -237,40 +257,69 @@ class StatusCardsRow extends StatelessWidget {
     String percentage,
   ) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(
+          colors: [color.withOpacity(0.3), color.withOpacity(0.1)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: color.withOpacity(0.1),
             spreadRadius: 1,
-            blurRadius: 5,
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
+        border: Border.all(color: color.withOpacity(0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.circle, color: color, size: 16),
-              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: color.withOpacity(0.2),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  title == 'En Curso' ? Icons.play_circle_outline :
+                  title == 'En Riesgo' ? Icons.warning_amber_rounded :
+                  title == 'Atrasados' ? Icons.error_outline :
+                  Icons.hourglass_empty_outlined,
+                  color: color,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[800],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Text(
             number,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.bold,
+              color: Colors.grey[800],
             ),
           ),
           Text(
@@ -279,12 +328,30 @@ class StatusCardsRow extends StatelessWidget {
               color: Colors.grey[600],
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Esta semana $percentage',
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w500,
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.6),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  percentage.contains('+') ? Icons.trending_up : Icons.trending_down,
+                  color: color,
+                  size: 18,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  'Esta semana $percentage',
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -293,21 +360,48 @@ class StatusCardsRow extends StatelessWidget {
   }
 }
 
-class ProjectsList extends StatelessWidget {
+class ProjectsList extends StatefulWidget {
+  @override
+  _ProjectsListState createState() => _ProjectsListState();
+}
+
+class _ProjectsListState extends State<ProjectsList> {
+  String _searchQuery = '';
+  TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+  
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('projects').snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('projects')
+          .snapshots(),
       builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2E7D32)),
+          ));
+        }
+
         if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));
         }
 
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+        var projects = snapshot.data?.docs ?? [];
+        
+        // Filtrar proyectos basados en la búsqueda
+        if (_searchQuery.isNotEmpty) {
+          projects = projects.where((project) {
+            final data = project.data() as Map<String, dynamic>;
+            final title = (data['title'] ?? '').toString().toLowerCase();
+            return title.contains(_searchQuery.toLowerCase());
+          }).toList();
         }
-
-        final projects = snapshot.data?.docs ?? [];
 
         return Container(
           padding: const EdgeInsets.all(24),
@@ -316,7 +410,7 @@ class ProjectsList extends StatelessWidget {
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withOpacity(0.08),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
               ),
@@ -325,37 +419,47 @@ class ProjectsList extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Encabezado de la lista
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.1),
+                          color: const Color(0xFF2E7D32).withOpacity(0.1),
                           borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF2E7D32).withOpacity(0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
                         ),
                         child: const Icon(
                           Icons.folder_special_rounded,
-                          color: Colors.blue,
+                          color: Color(0xFF2E7D32),
+                          size: 24,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 16),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
                             'Lista de Proyectos',
                             style: TextStyle(
-                              fontSize: 20,
+                              fontSize: 22,
                               fontWeight: FontWeight.bold,
+                              color: Color(0xFF263238),
                             ),
                           ),
                           Text(
-                            '${projects.length} proyectos activos',
-                            style: TextStyle(
-                              color: Colors.grey[600],
+                            '${projects.length} proyectos',
+                            style: const TextStyle(
+                              color: Color(0xFF78909C),
                               fontSize: 14,
                             ),
                           ),
@@ -363,146 +467,74 @@ class ProjectsList extends StatelessWidget {
                       ),
                     ],
                   ),
+                  Container(
+                    width: 200,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(30),
+                      border: Border.all(color: Colors.grey.withOpacity(0.2)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.search, color: const Color(0xFF546E7A), size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: _searchController,
+                            onChanged: (value) {
+                              setState(() {
+                                _searchQuery = value;
+                              });
+                            },
+                            decoration: const InputDecoration(
+                              hintText: 'Buscar...',
+                              hintStyle: TextStyle(
+                                color: Color(0xFF90A4AE),
+                                fontSize: 14,
+                              ),
+                              border: InputBorder.none,
+                              isDense: true,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                            style: const TextStyle(
+                              color: Color(0xFF455A64),
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+                        if (_searchQuery.isNotEmpty)
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _searchQuery = '';
+                                _searchController.clear();
+                              });
+                            },
+                            child: Icon(Icons.close, color: const Color(0xFF546E7A), size: 16),
+                          ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 24),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    headingRowHeight: 50,
-                    dataRowHeight: 65,
-                    horizontalMargin: 20,
-                    columnSpacing: 30,
-                    headingRowColor: MaterialStateProperty.all(Colors.grey[50]),
-                    headingTextStyle: TextStyle(
-                      color: Colors.grey[800],
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
+              
+              // Lista de proyectos - ahora con Flexible en lugar de Expanded
+              Flexible(
+                child: projects.isEmpty 
+                  ? _buildEmptyState()
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      physics: const ClampingScrollPhysics(),
+                      padding: EdgeInsets.zero,
+                      itemCount: projects.length,
+                      itemBuilder: (context, index) {
+                        final project = projects[index];
+                        final data = project.data() as Map<String, dynamic>;
+                        return _buildProjectCard(context, project, data);
+                      },
                     ),
-                    columns: const [
-                      DataColumn(
-                        label: Text('Nombre'),
-                        tooltip: 'Nombre del proyecto',
-                      ),
-                      DataColumn(
-                        label: Text('Estado'),
-                        tooltip: 'Estado actual del proyecto',
-                      ),
-                      DataColumn(
-                        label: Text('Por hacer'),
-                        tooltip: 'Tareas pendientes',
-                      ),
-                      DataColumn(
-                        label: Text('En proceso'),
-                        tooltip: 'Tareas en desarrollo',
-                      ),
-                      DataColumn(
-                        label: Text('En revisión'),
-                        tooltip: 'Tareas en revisión',
-                      ),
-                      DataColumn(
-                        label: Text('Completadas'),
-                        tooltip: 'Tareas finalizadas',
-                      ),
-                      DataColumn(
-                        label: Text('Avance'),
-                        tooltip: 'Porcentaje de avance',
-                      ),
-                      DataColumn(
-                        label: Text('Fecha límite'),
-                        tooltip: 'Fecha de entrega',
-                      ),
-                    ],
-                    rows: projects.map((project) {
-                      final data = project.data() as Map<String, dynamic>;
-                      return DataRow(
-                        cells: [
-                          DataCell(
-                            InkWell(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => ProjectScreenDetails(projectId: project.id),
-                                  ),
-                                );
-                              },
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: Colors.blue.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Icon(Icons.folder_outlined, 
-                                      color: Colors.blue[700], 
-                                      size: 20
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    data['title'] ?? 'Sin nombre',
-                                    style: TextStyle(
-                                      color: Colors.blue[700],
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          DataCell(_buildModernStatusChip(data['status'] ?? 'En proceso')),
-                          ...buildTaskStatusCells(project.id),
-                          DataCell(
-                            Container(
-                              width: 120,
-                              child: FutureBuilder<double>(
-                                future: calculateProjectProgress(project.id),
-                                builder: (context, snapshot) {
-                                  if (!snapshot.hasData) return const CircularProgressIndicator();
-                                  final progress = snapshot.data!;
-                                  return Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        '${(progress * 100).toStringAsFixed(0)}%',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: _getProgressColor(progress),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      ClipRRect(
-                                        borderRadius: BorderRadius.circular(4),
-                                        child: LinearProgressIndicator(
-                                          value: progress,
-                                          backgroundColor: Colors.grey[200],
-                                          valueColor: AlwaysStoppedAnimation<Color>(
-                                            _getProgressColor(progress),
-                                          ),
-                                          minHeight: 6,
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              ),
-                            ),
-                          ),
-                          DataCell(_buildDateCell((data['dueDate'] as Timestamp).toDate())),
-                        ],
-                      );
-                    }).toList(),
-                  ),
-                ),
               ),
             ],
           ),
@@ -511,67 +543,265 @@ class ProjectsList extends StatelessWidget {
     );
   }
 
-  List<DataCell> buildTaskStatusCells(String projectId) {
-    return [
-      'por hacer',
-      'en proceso',
-      'en revision',
-      'completada',
-    ].map((status) {
-      return DataCell(
-        StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('tasks')
-              .where('projectId', isEqualTo: projectId)
-              .where('status', isEqualTo: status)
-              .snapshots(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) return Text('...');
-            return Text(snapshot.data!.docs.length.toString());
-          },
+  Widget _buildProjectCard(BuildContext context, QueryDocumentSnapshot project, Map<String, dynamic> data) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: const Color(0xFFE0E0E0),
+          width: 1,
         ),
-      );
-    }).toList();
+      ),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProjectScreenDetails(projectId: project.id),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  // Icono y título
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E88E5).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.folder_outlined, 
+                      color: Color(0xFF1565C0), 
+                      size: 24
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          data['title'] ?? 'Sin nombre',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF263238),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Fecha límite: ${_formatDate((data['dueDate'] as Timestamp).toDate())}',
+                          style: const TextStyle(
+                            color: Color(0xFF78909C),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _buildModernStatusChip(data['status'] ?? 'En proceso'),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Estadísticas y progreso
+              Row(
+                children: [
+                  _buildStatsItem('Por hacer', buildTaskCount(project.id, 'por hacer')),
+                  _buildStatsItem('En proceso', buildTaskCount(project.id, 'en proceso')),
+                  _buildStatsItem('Revisión', buildTaskCount(project.id, 'en revision')),
+                  _buildStatsItem('Completadas', buildTaskCount(project.id, 'completada')),
+                  const Spacer(),
+                  Container(
+                    width: 120,
+                    child: FutureBuilder<double>(
+                      future: calculateProjectProgress(project.id),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData) return const SizedBox(
+                          height: 12,
+                          width: 12,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1976D2)),
+                          ),
+                        );
+                        final progress = snapshot.data!;
+                        return Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Progreso',
+                                  style: TextStyle(
+                                    color: Color(0xFF607D8B),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  '${(progress * 100).toStringAsFixed(0)}%',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: _getProgressColor(progress),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Stack(
+                              children: [
+                                Container(
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFEEEEEE),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                ),
+                                Container(
+                                  height: 8,
+                                  width: 120 * progress,
+                                  decoration: BoxDecoration(
+                                    color: _getProgressColor(progress),
+                                    borderRadius: BorderRadius.circular(4),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: _getProgressColor(progress).withOpacity(0.4),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
-  Future<double> calculateProjectProgress(String projectId) async {
-    final tasksSnapshot = await FirebaseFirestore.instance
+  Widget _buildStatsItem(String label, Widget count) {
+    return Container(
+      margin: const EdgeInsets.only(right: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF607D8B),
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 4),
+          count,
+        ],
+      ),
+    );
+  }
+
+  Widget buildTaskCount(String projectId, String status) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
         .collection('tasks')
         .where('projectId', isEqualTo: projectId)
-        .get();
-
-    if (tasksSnapshot.docs.isEmpty) return 0.0;
-
-    int totalTasks = tasksSnapshot.docs.length;
-    int completedTasks = tasksSnapshot.docs
-        .where((doc) => doc['status'] == 'completada')
-        .length;
-    int inReviewTasks = tasksSnapshot.docs
-        .where((doc) => doc['status'] == 'en revision')
-        .length;
-    int inProgressTasks = tasksSnapshot.docs
-        .where((doc) => doc['status'] == 'en proceso')
-        .length;
-
-    // Calcular progreso ponderado
-    double progress = (
-      (completedTasks * 1.0) + 
-      (inReviewTasks * 0.8) + 
-      (inProgressTasks * 0.4)
-    ) / totalTasks;
-
-    return progress;
+        .where('status', isEqualTo: status)
+        .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Text('...');
+        }
+        
+        if (snapshot.hasError) {
+          print('Error al obtener tareas ($status): ${snapshot.error}');
+          return const Text('0');
+        }
+        
+        if (!snapshot.hasData) {
+          return const Text('0');
+        }
+        
+        final count = snapshot.data!.docs.length;
+        return Text(
+          count.toString(),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            color: Color(0xFF37474F),
+          ),
+        );
+      },
+    );
   }
 
-  Color _getProgressColor(double progress) {
-    if (progress >= 0.8) return Colors.green;
-    if (progress >= 0.5) return Colors.blue;
-    if (progress >= 0.3) return Colors.orange;
-    return Colors.red;
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFF42A5F5).withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.folder_open,
+              size: 48,
+              color: Color(0xFF1976D2),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'No hay proyectos',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF263238),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Crea tu primer proyecto para empezar a trabajar',
+            style: TextStyle(
+              color: Color(0xFF78909C),
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton.icon(
+            onPressed: () {
+              // Navegar a la página de creación de proyectos
+            },
+            icon: const Icon(Icons.add),
+            label: const Text('Crear proyecto'),
+            style: ElevatedButton.styleFrom(
+              foregroundColor: Colors.white,
+              backgroundColor: const Color(0xFF2E7D32),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildModernStatusChip(String status) {
@@ -579,19 +809,19 @@ class ProjectsList extends StatelessWidget {
     IconData icon;
     switch (status.toLowerCase()) {
       case 'completado':
-        color = Colors.green;
+        color = const Color(0xFF4CAF50);
         icon = Icons.check_circle_outline;
         break;
       case 'en riesgo':
-        color = Colors.orange;
+        color = const Color(0xFFFFA000);
         icon = Icons.warning_amber_rounded;
         break;
       case 'atrasado':
-        color = Colors.red;
+        color = const Color(0xFFF44336);
         icon = Icons.error_outline;
         break;
       default:
-        color = Colors.blue;
+        color = const Color(0xFF2196F3);
         icon = Icons.play_circle_outline;
     }
 
@@ -619,36 +849,49 @@ class ProjectsList extends StatelessWidget {
     );
   }
 
-  Widget _buildDateCell(DateTime date) {
-    final now = DateTime.now();
-    final difference = date.difference(now).inDays;
-    final isLate = difference < 0;
-    
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: isLate ? Colors.red.withOpacity(0.1) : Colors.grey[100],
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            isLate ? Icons.warning_rounded : Icons.calendar_today_rounded,
-            size: 16,
-            color: isLate ? Colors.red : Colors.grey[700],
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '${date.day}/${date.month}/${date.year}',
-            style: TextStyle(
-              color: isLate ? Colors.red : Colors.grey[800],
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
+  }
+
+  Color _getProgressColor(double progress) {
+    if (progress >= 0.8) return const Color(0xFF43A047);  // Verde más oscuro
+    if (progress >= 0.5) return const Color(0xFF1E88E5);  // Azul más oscuro
+    if (progress >= 0.3) return const Color(0xFFFB8C00);  // Naranja más oscuro
+    return const Color(0xFFE53935);  // Rojo más oscuro
+  }
+  
+  Future<double> calculateProjectProgress(String projectId) async {
+    try {
+      final tasksSnapshot = await FirebaseFirestore.instance
+          .collection('tasks')
+          .where('projectId', isEqualTo: projectId)
+          .get();
+
+      if (tasksSnapshot.docs.isEmpty) return 0.0;
+
+      int totalTasks = tasksSnapshot.docs.length;
+      int completedTasks = tasksSnapshot.docs
+          .where((doc) => (doc.data() as Map<String, dynamic>)['status'] == 'completada')
+          .length;
+      int inReviewTasks = tasksSnapshot.docs
+          .where((doc) => (doc.data() as Map<String, dynamic>)['status'] == 'en revision')
+          .length;
+      int inProgressTasks = tasksSnapshot.docs
+          .where((doc) => (doc.data() as Map<String, dynamic>)['status'] == 'en proceso')
+          .length;
+
+      // Calcular progreso ponderado
+      double progress = (
+        (completedTasks * 1.0) + 
+        (inReviewTasks * 0.8) + 
+        (inProgressTasks * 0.4)
+      ) / totalTasks;
+
+      return progress;
+    } catch (e) {
+      print('Error al calcular el progreso del proyecto: $e');
+      return 0.0;
+    }
   }
 }
 
@@ -893,25 +1136,77 @@ class ModernPieChartPainter extends CustomPainter {
     final radius = size.width / 2;
     var startAngle = -90 * (pi / 180);
 
+    // Dibujar un círculo de fondo semi-transparente
+    final bgPaint = Paint()
+      ..color = Colors.grey.withOpacity(0.1)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(center, radius, bgPaint);
+
+    // Dibujar un círculo exterior como borde
+    final borderPaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+    canvas.drawCircle(center, radius, borderPaint);
+
+    // Calcular el ángulo total disponible (excluyendo pequeños espacios entre secciones)
+    final spaceAngle = 2 * pi / 180; // 2 grados entre secciones
+    final totalSpace = spaceAngle * sections.length;
+    final availableAngle = 2 * pi - totalSpace;
+
     for (var section in sections) {
-      final sweepAngle = section.percentage * 2 * pi;
+      final sweepAngle = section.percentage * availableAngle;
+      
       final paint = Paint()
         ..color = section.color
         ..style = PaintingStyle.fill
-        ..strokeWidth = 2
+        ..strokeWidth = 3
         ..strokeCap = StrokeCap.round;
 
-      // Dibujar sección con un pequeño espacio
+      // Dibujar sección con un pequeño espacio y borde redondeado
+      final rect = Rect.fromCircle(center: center, radius: radius - 5);
       canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius - 5),
+        rect,
         startAngle,
-        sweepAngle - (pi / 180 * 2), // Pequeño espacio entre secciones
+        sweepAngle,
         true,
         paint,
       );
 
-      startAngle += sweepAngle;
+      // Añadir un brillo/resplandor en la parte superior de cada sección para dar efecto 3D
+      if (section.percentage > 0.1) {  // Solo para secciones suficientemente grandes
+        final highlightPaint = Paint()
+          ..color = Colors.white.withOpacity(0.3)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3;
+        
+        canvas.drawArc(
+          rect,
+          startAngle,
+          sweepAngle / 3,  // El resaltado solo cubre parte de la sección
+          false,
+          highlightPaint,
+        );
+      }
+
+      // Moverse al siguiente ángulo, añadiendo un pequeño espacio
+      startAngle += sweepAngle + spaceAngle;
     }
+
+    // Dibujar un círculo interior para crear el efecto de dona
+    final innerCirclePaint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    
+    canvas.drawCircle(center, radius * 0.6, innerCirclePaint);
+    
+    // Borde interior con sombra suave
+    final innerBorderPaint = Paint()
+      ..color = Colors.grey.withOpacity(0.1)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    
+    canvas.drawCircle(center, radius * 0.6, innerBorderPaint);
   }
 
   @override
@@ -1119,49 +1414,49 @@ class _ProjectsOverviewTableState extends State<ProjectsOverviewTable> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
-          StreamBuilder<List<ActivityItem>>(
-            stream: _activityStream,
-            builder: (context, snapshot) {
-              print('Estado del StreamBuilder: ${snapshot.connectionState}');
-              print('Tiene error: ${snapshot.hasError}');
-              if (snapshot.hasError) print('Error: ${snapshot.error}');
-              print('Tiene datos: ${snapshot.hasData}');
-              if (snapshot.hasData) print('Número de items: ${snapshot.data!.length}');
+          const SizedBox(height: 16),
+          Expanded(
+            child: StreamBuilder<List<ActivityItem>>(
+              stream: _activityStream,
+              builder: (context, snapshot) {
+                print('Estado del StreamBuilder: ${snapshot.connectionState}');
+                print('Tiene error: ${snapshot.hasError}');
+                if (snapshot.hasError) print('Error: ${snapshot.error}');
+                print('Tiene datos: ${snapshot.hasData}');
+                if (snapshot.hasData) print('Número de items: ${snapshot.data!.length}');
 
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return Center(child: CircularProgressIndicator());
-              }
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(child: CircularProgressIndicator());
+                }
 
-              if (snapshot.hasError) {
-                return Center(child: Text('Error: ${snapshot.error}'));
-              }
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
 
-              if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.inbox_outlined, 
-                        size: 48, 
-                        color: Colors.grey[400]
-                      ),
-                      SizedBox(height: 16),
-                      Text(
-                        'No hay actividad reciente',
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 16,
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.inbox_outlined, 
+                          size: 48, 
+                          color: Colors.grey[400]
                         ),
-                      ),
-                    ],
-                  ),
-                );
-              }
+                        SizedBox(height: 16),
+                        Text(
+                          'No hay actividad reciente',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
 
-              return Container(
-                height: 400, // Altura fija para el contenedor scrolleable
-                child: ListView.separated(
+                return ListView.separated(
+                  shrinkWrap: true,
                   physics: BouncingScrollPhysics(),
                   itemCount: snapshot.data!.length,
                   separatorBuilder: (context, index) => Divider(height: 1),
@@ -1170,9 +1465,9 @@ class _ProjectsOverviewTableState extends State<ProjectsOverviewTable> {
                     print('Construyendo item $index: ${activity.type} - ${activity.title}');
                     return _buildActivityItem(activity);
                   },
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -1333,24 +1628,49 @@ class NavigationSidebar extends StatelessWidget {
     final isAdmin = currentUser != null && adminEmails.contains(currentUser.email);
 
     return Container(
-      width: 72,
-      color: const Color(0xFF1E4B5F),
+      width: 80, // Ligeramente más ancho
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E4B5F),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(2, 0),
+          ),
+        ],
+      ),
       child: Column(
         children: [
-          // Logo LTM
-          Padding(
-            padding: const EdgeInsets.all(16.0),
+          // Logo LTM con efecto de elevación
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 24.0),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E4B5F).withOpacity(0.8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
             child: Image.asset(
               'assets/ltm.png',
-              width: 40,
-              height: 40,
+              width: 42,
+              height: 42,
               fit: BoxFit.contain,
             ),
           ),
-          // Botones de navegación esenciales
-          _buildNavButton(Icons.home, isSelected: true),
+          const SizedBox(height: 24),
+          // Botones de navegación mejorados
           _buildNavButton(
-            Icons.folder_special_outlined,
+            Icons.home_rounded, 
+            'Inicio',
+            isSelected: true,
+          ),
+          _buildNavButton(
+            Icons.folder_special_rounded,
+            'Proyectos',
             onPressed: () {
               Navigator.push(
                 context,
@@ -1362,54 +1682,101 @@ class NavigationSidebar extends StatelessWidget {
               );
             },
           ),
-          _buildNavButton(Icons.add_circle_outline, isAction: true, onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ProjectCreationPage(
-                  user: FirebaseAuth.instance.currentUser!,
-                ),
-              ),
-            );
-          }),
-          const Spacer(),
-          if (isAdmin)
-            _buildNavButton(Icons.settings, onPressed: () {
+          _buildNavButton(
+            Icons.add_circle_outlined,
+            'Crear',
+            isAction: true, 
+            onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => ConfigurationPage(),
+                  builder: (context) => ProjectCreationPage(
+                    user: FirebaseAuth.instance.currentUser!,
+                  ),
                 ),
               );
-            }),
-          const SizedBox(height: 16),
+            }
+          ),
+          const Spacer(),
+          if (isAdmin)
+            _buildNavButton(
+              Icons.settings_rounded, 
+              'Config',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ConfigurationPage(),
+                  ),
+                );
+              }
+            ),
+          const SizedBox(height: 20),
         ],
       ),
     );
   }
 
-  Widget _buildNavButton(IconData icon, {
-    bool isSelected = false, 
-    bool isAction = false, 
-    VoidCallback? onPressed
-  }) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        border: isSelected
-            ? Border(
-                left: BorderSide(
-                  color: Colors.white,
-                  width: 3,
+  Widget _buildNavButton(
+    IconData icon, 
+    String label, {
+      bool isSelected = false, 
+      bool isAction = false, 
+      VoidCallback? onPressed
+    }
+  ) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            border: isSelected
+                ? Border(
+                    left: BorderSide(
+                      color: Colors.white,
+                      width: 3,
+                    ),
+                  )
+                : null,
+          ),
+          child: Tooltip(
+            message: label,
+            preferBelow: false,
+            verticalOffset: 20,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onPressed,
+                customBorder: const CircleBorder(),
+                hoverColor: isAction ? Colors.greenAccent.withOpacity(0.1) : Colors.white.withOpacity(0.1),
+                splashColor: isAction ? Colors.greenAccent.withOpacity(0.2) : Colors.white.withOpacity(0.2),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  child: Icon(
+                    icon,
+                    color: isAction 
+                        ? Colors.greenAccent 
+                        : (isSelected ? Colors.white : Colors.white70),
+                    size: 26,
+                  ),
                 ),
-              )
-            : null,
-      ),
-      child: IconButton(
-        icon: Icon(icon),
-        color: isAction ? Colors.greenAccent : (isSelected ? Colors.white : Colors.white54),
-        onPressed: onPressed ?? () {},
-      ),
+              ),
+            ),
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            color: isAction 
+                ? Colors.greenAccent.withOpacity(0.9) 
+                : (isSelected ? Colors.white : Colors.white60),
+            fontSize: 10,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
+        const SizedBox(height: 8),
+      ],
     );
   }
 } 
