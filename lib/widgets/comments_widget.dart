@@ -12,8 +12,13 @@ import 'package:intl/intl.dart';
 
 class CommentsSection extends StatefulWidget {
   final String projectId;
+  final ScrollController? scrollController;
 
-  const CommentsSection({Key? key, required this.projectId}) : super(key: key);
+  const CommentsSection({
+    Key? key,
+    required this.projectId,
+    this.scrollController,
+  }) : super(key: key);
 
   @override
   _CommentsSectionState createState() => _CommentsSectionState();
@@ -25,6 +30,39 @@ class _CommentsSectionState extends State<CommentsSection> {
   bool _isUploading = false;
   double _uploadProgress = 0.0;
   String _uploadStatus = '';
+  late ScrollController _scrollController;
+  bool _isScrollControllerAttached = false;
+
+  @override
+  void initState() {
+    super.initState();
+    print('📜 CommentsSection - initState');
+    _initScrollController();
+  }
+
+  void _initScrollController() {
+    print('📜 CommentsSection - Inicializando ScrollController');
+    _scrollController = widget.scrollController ?? ScrollController();
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _isScrollControllerAttached = true;
+        });
+        print('📜 CommentsSection - ScrollController inicializado y attached');
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    print('📜 CommentsSection - dispose');
+    if (widget.scrollController == null && _scrollController.hasClients) {
+      _scrollController.dispose();
+    }
+    _commentController.dispose();
+    super.dispose();
+  }
 
   Future<void> _pickFile() async {
     print('🔍 Iniciando selección de archivo para comentario');
@@ -445,62 +483,80 @@ class _CommentsSectionState extends State<CommentsSection> {
       child: Column(
         children: [
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('projects')
-                  .doc(widget.projectId)
-                  .collection('comments')
-                  .orderBy('createdAt', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) {
-                  return Center(child: CircularProgressIndicator());
-                }
+            child: !_isScrollControllerAttached
+              ? const Center(child: CircularProgressIndicator())
+              : Scrollbar(
+                  controller: _scrollController,
+                  thumbVisibility: true,
+                  trackVisibility: true,
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('projects')
+                        .doc(widget.projectId)
+                        .collection('comments')
+                        .orderBy('createdAt', descending: true)
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        print('❌ Error en StreamBuilder: ${snapshot.error}');
+                        return Center(
+                          child: Text('Error al cargar los comentarios: ${snapshot.error}'),
+                        );
+                      }
 
-                final comments = snapshot.data!.docs;
+                      if (!snapshot.hasData) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
 
-                if (comments.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.chat_bubble_outline,
-                          size: 64,
-                          color: Colors.grey[300],
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          'No hay comentarios aún',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 16,
+                      final comments = snapshot.data!.docs;
+                      print('📜 Número de comentarios cargados: ${comments.length}');
+
+                      if (comments.isEmpty) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.chat_bubble_outline,
+                                size: 64,
+                                color: Colors.grey[300],
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'No hay comentarios aún',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Sé el primero en comentar',
+                                style: TextStyle(
+                                  color: Colors.grey[400],
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          'Sé el primero en comentar',
-                          style: TextStyle(
-                            color: Colors.grey[400],
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
+                        );
+                      }
 
-                return ListView.builder(
-                  padding: EdgeInsets.all(16),
-                  itemCount: comments.length,
-                  itemBuilder: (context, index) {
-                    final comment = comments[index].data() as Map<String, dynamic>;
-                    final attachment = comment['attachment'] as Map<String, dynamic>?;
-                    return _buildCommentCard(comment, attachment, comments[index].id);
-                  },
-                );
-              },
-            ),
+                      return ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.all(24),
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        itemCount: comments.length,
+                        itemBuilder: (context, index) {
+                          print('📜 Construyendo comentario $index');
+                          final comment = comments[index].data() as Map<String, dynamic>;
+                          final attachment = comment['attachment'] as Map<String, dynamic>?;
+                          return _buildCommentCard(comment, attachment, comments[index].id);
+                        },
+                      );
+                    },
+                  ),
+                ),
           ),
 
           Container(

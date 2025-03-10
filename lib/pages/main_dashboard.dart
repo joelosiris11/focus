@@ -8,6 +8,7 @@ import 'package:rxdart/rxdart.dart';
 import 'configuration_page.dart';
 import 'activities_page.dart';
 import 'my_projects_page.dart';
+import 'all_projects_page.dart';
 import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart' as ui;
 import 'package:flutter/rendering.dart';
@@ -1670,7 +1671,7 @@ class NavigationSidebar extends StatelessWidget {
           ),
           _buildNavButton(
             Icons.folder_special_rounded,
-            'Proyectos',
+            'Mis Proy',
             onPressed: () {
               Navigator.push(
                 context,
@@ -1678,6 +1679,18 @@ class NavigationSidebar extends StatelessWidget {
                   builder: (context) => MyProjectsPage(
                     user: FirebaseAuth.instance.currentUser!,
                   ),
+                ),
+              );
+            },
+          ),
+          _buildNavButton(
+            Icons.dashboard_rounded,
+            'Proyectos',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => AllProjectsPage(),
                 ),
               );
             },

@@ -23,23 +23,56 @@ class ProjectScreenDetails extends StatefulWidget {
   _ProjectScreenDetailsState createState() => _ProjectScreenDetailsState();
 }
 
-class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _ProjectScreenDetailsState extends State<ProjectScreenDetails> {
+  int _selectedIndex = 0;
+  late ScrollController _detailsScrollController;
+  late ScrollController _commentsScrollController;
+  bool _isInitialized = false;
+  bool _areScrollControllersAttached = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) {
-        setState(() {});
+    print('🔧 ProjectScreenDetails - initState');
+    _initScrollControllers();
+  }
+
+  void _initScrollControllers() {
+    print('🔧 ProjectScreenDetails - Inicializando ScrollControllers');
+    _detailsScrollController = ScrollController()
+      ..addListener(() {
+        if (_detailsScrollController.hasClients) {
+          print('📜 DetailsScroll - offset: ${_detailsScrollController.offset}');
+        }
+      });
+    
+    _commentsScrollController = ScrollController()
+      ..addListener(() {
+        if (_commentsScrollController.hasClients) {
+          print('📜 CommentsScroll - offset: ${_commentsScrollController.offset}');
+        }
+      });
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _isInitialized = true;
+          _areScrollControllersAttached = true;
+        });
+        print('🔧 ProjectScreenDetails - Post frame callback - ScrollControllers inicializados');
       }
     });
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    print('🔧 ProjectScreenDetails - dispose');
+    if (_detailsScrollController.hasClients) {
+      _detailsScrollController.dispose();
+    }
+    if (_commentsScrollController.hasClients) {
+      _commentsScrollController.dispose();
+    }
     super.dispose();
   }
 
@@ -102,6 +135,16 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
 
   @override
   Widget build(BuildContext context) {
+    print('🔧 ProjectScreenDetails - build - selectedIndex: $_selectedIndex');
+    
+    if (!_isInitialized || !_areScrollControllersAttached) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance
           .collection('projects')
@@ -274,32 +317,88 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Column(
                   children: [
-                    TabBar(
-                      controller: _tabController,
-                      labelColor: projectColor,
-                      unselectedLabelColor: Colors.grey[500],
-                      indicatorColor: projectColor,
-                      indicatorWeight: 3,
-                      labelStyle: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                      unselectedLabelStyle: const TextStyle(
-                        fontWeight: FontWeight.normal,
-                        fontSize: 14,
-                      ),
-                      tabs: const [
-                        Tab(
-                          icon: Icon(Icons.dashboard_rounded, size: 22),
-                          text: 'Kanban',
+                    Row(
+                      children: [
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => setState(() => _selectedIndex = 0),
+                            child: Column(
+                              children: [
+                                Icon(
+                                  Icons.dashboard_rounded,
+                                  size: 22,
+                                  color: _selectedIndex == 0 ? projectColor : Colors.grey[500],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Kanban',
+                                  style: TextStyle(
+                                    color: _selectedIndex == 0 ? projectColor : Colors.grey[500],
+                                    fontWeight: _selectedIndex == 0 ? FontWeight.bold : FontWeight.normal,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Container(
+                                  height: 3,
+                                  color: _selectedIndex == 0 ? projectColor : Colors.transparent,
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                        Tab(
-                          icon: Icon(Icons.info_rounded, size: 22),
-                          text: 'Detalles',
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => setState(() => _selectedIndex = 1),
+                            child: Column(
+                              children: [
+                                Icon(
+                                  Icons.info_rounded,
+                                  size: 22,
+                                  color: _selectedIndex == 1 ? projectColor : Colors.grey[500],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Detalles',
+                                  style: TextStyle(
+                                    color: _selectedIndex == 1 ? projectColor : Colors.grey[500],
+                                    fontWeight: _selectedIndex == 1 ? FontWeight.bold : FontWeight.normal,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Container(
+                                  height: 3,
+                                  color: _selectedIndex == 1 ? projectColor : Colors.transparent,
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                        Tab(
-                          icon: Icon(Icons.chat_rounded, size: 22),
-                          text: 'Conversación',
+                        Expanded(
+                          child: InkWell(
+                            onTap: () => setState(() => _selectedIndex = 2),
+                            child: Column(
+                              children: [
+                                Icon(
+                                  Icons.chat_rounded,
+                                  size: 22,
+                                  color: _selectedIndex == 2 ? projectColor : Colors.grey[500],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Conversación',
+                                  style: TextStyle(
+                                    color: _selectedIndex == 2 ? projectColor : Colors.grey[500],
+                                    fontWeight: _selectedIndex == 2 ? FontWeight.bold : FontWeight.normal,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Container(
+                                  height: 3,
+                                  color: _selectedIndex == 2 ? projectColor : Colors.transparent,
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -311,14 +410,11 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
                           IconButton(
                             icon: Icon(
                               Icons.arrow_back_ios_rounded,
-                              color: _tabController.index > 0 ? projectColor : Colors.grey[300],
+                              color: _selectedIndex > 0 ? projectColor : Colors.grey[300],
                               size: 20,
                             ),
-                            onPressed: _tabController.index > 0
-                                ? () {
-                                    _tabController.animateTo(_tabController.index - 1);
-                                    setState(() {});
-                                  }
+                            onPressed: _selectedIndex > 0
+                                ? () => setState(() => _selectedIndex--)
                                 : null,
                             tooltip: 'Pestaña anterior',
                             splashRadius: 24,
@@ -333,7 +429,7 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
                                 margin: const EdgeInsets.symmetric(horizontal: 4),
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: _tabController.index == index
+                                  color: _selectedIndex == index
                                       ? projectColor
                                       : Colors.grey[300],
                                 ),
@@ -343,14 +439,11 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
                           IconButton(
                             icon: Icon(
                               Icons.arrow_forward_ios_rounded,
-                              color: _tabController.index < 2 ? projectColor : Colors.grey[300],
+                              color: _selectedIndex < 2 ? projectColor : Colors.grey[300],
                               size: 20,
                             ),
-                            onPressed: _tabController.index < 2
-                                ? () {
-                                    _tabController.animateTo(_tabController.index + 1);
-                                    setState(() {});
-                                  }
+                            onPressed: _selectedIndex < 2
+                                ? () => setState(() => _selectedIndex++)
                                 : null,
                             tooltip: 'Siguiente pestaña',
                             splashRadius: 24,
@@ -364,415 +457,495 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
               Expanded(
                 child: Container(
                   color: const Color(0xFFF5F7FA),
-                  child: TabBarView(
-                    controller: _tabController,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: [
-                      KanbanBoard(
-                        projectId: widget.projectId,
-                        projectColor: projectColor,
-                      ),
-                      SingleChildScrollView(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildCardContainer(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                        decoration: BoxDecoration(
-                                          color: _getStatusColor(projectStatus).withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(30),
-                                          border: Border.all(
-                                            color: _getStatusColor(projectStatus).withOpacity(0.2),
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(
-                                              _getStatusIcon(projectStatus),
-                                              size: 18,
-                                              color: _getStatusColor(projectStatus),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              projectStatus.toUpperCase(),
-                                              style: TextStyle(
-                                                color: _getStatusColor(projectStatus),
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      _buildStatusChangeButton(projectStatus),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 24),
-                                  const Divider(height: 1, color: Color(0xFFEEEEEE)),
-                                  const SizedBox(height: 24),
-                                  
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: _buildDateCard(
-                                          'Fecha de inicio',
-                                          _formatDate(projectData['startDate']),
-                                          Icons.calendar_today_outlined,
-                                          const Color(0xFF4CAF50),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Expanded(
-                                        child: _buildDateCard(
-                                          'Fecha límite',
-                                          _formatDate(projectData['dueDate']),
-                                          Icons.event_outlined,
-                                          const Color(0xFFFFA726),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  
-                                  const SizedBox(height: 24),
-                                  
-                                  StreamBuilder<QuerySnapshot>(
-                                    stream: FirebaseFirestore.instance
-                                        .collection('tasks')
-                                        .where('projectId', isEqualTo: widget.projectId)
-                                        .snapshots(),
-                                    builder: (context, taskSnapshot) {
-                                      if (!taskSnapshot.hasData) {
-                                        return const Center(
-                                          child: LinearProgressIndicator(
-                                            backgroundColor: Color(0xFFE0E0E0),
-                                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1E88E5)),
-                                          ),
-                                        );
-                                      }
-                                      
-                                      final tasks = taskSnapshot.data!.docs;
-                                      final totalTasks = tasks.length;
-                                      
-                                      if (totalTasks == 0) {
-                                        return Container(
-                                          padding: const EdgeInsets.all(16),
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey[50],
-                                            borderRadius: BorderRadius.circular(12),
-                                            border: Border.all(color: Colors.grey.withOpacity(0.1)),
-                                          ),
-                                          child: Center(
-                                            child: Column(
-                                              children: [
-                                                Icon(
-                                                  Icons.assignment_outlined,
-                                                  size: 36,
-                                                  color: Colors.grey[300],
-                                                ),
-                                                const SizedBox(height: 8),
-                                                Text(
-                                                  'No hay tareas en este proyecto',
-                                                  style: TextStyle(
-                                                    color: Colors.grey[600],
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        );
-                                      }
-                                      
-                                      final completedTasks = tasks
-                                          .where((task) => (task.data() as Map<String, dynamic>)['status'] == 'completada')
-                                          .length;
-                                      
-                                      final inProcessTasks = tasks
-                                          .where((task) => (task.data() as Map<String, dynamic>)['status'] == 'en proceso')
-                                          .length;
-                                      
-                                      final pendingTasks = tasks
-                                          .where((task) => (task.data() as Map<String, dynamic>)['status'] == 'por hacer')
-                                          .length;
-                                      
-                                      final progressPercentage = totalTasks > 0
-                                          ? (completedTasks / totalTasks * 100).round()
-                                          : 0;
-                                      
-                                      return Column(
+                  child: !_areScrollControllersAttached 
+                    ? const Center(
+                        child: CircularProgressIndicator(),
+                      )
+                    : IndexedStack(
+                      index: _selectedIndex,
+                      children: [
+                        KanbanBoard(
+                          projectId: widget.projectId,
+                          projectColor: projectColor,
+                        ),
+                        NotificationListener<ScrollNotification>(
+                          onNotification: (notification) {
+                            print('📜 Details ScrollNotification: ${notification.runtimeType}');
+                            return false;
+                          },
+                          child: !_areScrollControllersAttached
+                            ? const Center(child: CircularProgressIndicator())
+                            : Scrollbar(
+                              controller: _detailsScrollController,
+                              thumbVisibility: true,
+                              trackVisibility: true,
+                              child: SingleChildScrollView(
+                                key: const PageStorageKey('details_scroll'),
+                                controller: _detailsScrollController,
+                                padding: const EdgeInsets.all(24),
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _buildCardContainer(
+                                      child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Row(
                                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                             children: [
-                                              Text(
-                                                'Progreso del Proyecto',
-                                                style: TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.grey[800],
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                                decoration: BoxDecoration(
+                                                  color: _getStatusColor(projectStatus).withOpacity(0.1),
+                                                  borderRadius: BorderRadius.circular(30),
+                                                  border: Border.all(
+                                                    color: _getStatusColor(projectStatus).withOpacity(0.2),
+                                                  ),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Icon(
+                                                      _getStatusIcon(projectStatus),
+                                                      size: 18,
+                                                      color: _getStatusColor(projectStatus),
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Text(
+                                                      projectStatus.toUpperCase(),
+                                                      style: TextStyle(
+                                                        color: _getStatusColor(projectStatus),
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
                                               ),
-                                              Text(
-                                                '$progressPercentage%',
-                                                style: TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: progressPercentage > 66
-                                                      ? const Color(0xFF4CAF50)
-                                                      : progressPercentage > 33
-                                                          ? const Color(0xFFFFA726)
-                                                          : const Color(0xFFF44336),
+                                              PopupMenuButton<String>(
+                                                tooltip: 'Cambiar estado',
+                                                icon: Container(
+                                                  padding: const EdgeInsets.all(8),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.grey[100],
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                  child: Icon(
+                                                    Icons.edit_outlined,
+                                                    size: 18,
+                                                    color: Colors.grey[700],
+                                                  ),
                                                 ),
+                                                onSelected: (String newStatus) {
+                                                  _updateProjectStatus(newStatus);
+                                                },
+                                                itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                                                  const PopupMenuItem<String>(
+                                                    value: 'En progreso',
+                                                    child: Row(
+                                                      children: [
+                                                        Icon(Icons.trending_up, color: Colors.blue, size: 18),
+                                                        SizedBox(width: 8),
+                                                        Text('En progreso'),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  const PopupMenuItem<String>(
+                                                    value: 'Completado',
+                                                    child: Row(
+                                                      children: [
+                                                        Icon(Icons.check_circle_outline, color: Colors.green, size: 18),
+                                                        SizedBox(width: 8),
+                                                        Text('Completado'),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  const PopupMenuItem<String>(
+                                                    value: 'Pausado',
+                                                    child: Row(
+                                                      children: [
+                                                        Icon(Icons.pause_circle_outline, color: Colors.orange, size: 18),
+                                                        SizedBox(width: 8),
+                                                        Text('Pausado'),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  const PopupMenuItem<String>(
+                                                    value: 'Retrasado',
+                                                    child: Row(
+                                                      children: [
+                                                        Icon(Icons.warning_outlined, color: Colors.red, size: 18),
+                                                        SizedBox(width: 8),
+                                                        Text('Retrasado'),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ],
                                           ),
-                                          const SizedBox(height: 16),
-                                          ClipRRect(
-                                            borderRadius: BorderRadius.circular(4),
-                                            child: LinearProgressIndicator(
-                                              value: progressPercentage / 100,
-                                              backgroundColor: Colors.grey[200],
-                                              valueColor: AlwaysStoppedAnimation<Color>(
-                                                progressPercentage > 66
-                                                    ? const Color(0xFF4CAF50)
-                                                    : progressPercentage > 33
-                                                        ? const Color(0xFFFFA726)
-                                                        : const Color(0xFFF44336),
-                                              ),
-                                              minHeight: 8,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 16),
+                                          const SizedBox(height: 24),
+                                          const Divider(height: 1, color: Color(0xFFEEEEEE)),
+                                          const SizedBox(height: 24),
+                                          
                                           Row(
                                             children: [
-                                              _buildTaskCountChip(
-                                                '$pendingTasks',
-                                                'Por hacer',
-                                                Colors.grey[700]!,
+                                              Expanded(
+                                                child: _buildDateCard(
+                                                  'Fecha de inicio',
+                                                  _formatDate(projectData['startDate']),
+                                                  Icons.calendar_today_outlined,
+                                                  const Color(0xFF4CAF50),
+                                                ),
                                               ),
-                                              const SizedBox(width: 8),
-                                              _buildTaskCountChip(
-                                                '$inProcessTasks',
-                                                'En proceso',
-                                                Colors.blue,
-                                              ),
-                                              const SizedBox(width: 8),
-                                              _buildTaskCountChip(
-                                                '$completedTasks',
-                                                'Completadas',
-                                                Colors.green,
+                                              const SizedBox(width: 16),
+                                              Expanded(
+                                                child: _buildDateCard(
+                                                  'Fecha límite',
+                                                  _formatDate(projectData['dueDate']),
+                                                  Icons.event_outlined,
+                                                  const Color(0xFFFFA726),
+                                                ),
                                               ),
                                             ],
                                           ),
+                                          
+                                          const SizedBox(height: 24),
+                                          
+                                          StreamBuilder<QuerySnapshot>(
+                                            stream: FirebaseFirestore.instance
+                                                .collection('tasks')
+                                                .where('projectId', isEqualTo: widget.projectId)
+                                                .snapshots(),
+                                            builder: (context, taskSnapshot) {
+                                              if (!taskSnapshot.hasData) {
+                                                return const Center(
+                                                  child: LinearProgressIndicator(
+                                                    backgroundColor: Color(0xFFE0E0E0),
+                                                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1E88E5)),
+                                                  ),
+                                                );
+                                              }
+                                              
+                                              final tasks = taskSnapshot.data!.docs;
+                                              final totalTasks = tasks.length;
+                                              
+                                              if (totalTasks == 0) {
+                                                return Container(
+                                                  padding: const EdgeInsets.all(16),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.grey[50],
+                                                    borderRadius: BorderRadius.circular(12),
+                                                    border: Border.all(color: Colors.grey.withOpacity(0.1)),
+                                                  ),
+                                                  child: Center(
+                                                    child: Column(
+                                                      children: [
+                                                        Icon(
+                                                          Icons.assignment_outlined,
+                                                          size: 36,
+                                                          color: Colors.grey[300],
+                                                        ),
+                                                        const SizedBox(height: 8),
+                                                        Text(
+                                                          'No hay tareas en este proyecto',
+                                                          style: TextStyle(
+                                                            color: Colors.grey[600],
+                                                            fontWeight: FontWeight.w500,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                );
+                                              }
+                                              
+                                              final completedTasks = tasks
+                                                  .where((task) => (task.data() as Map<String, dynamic>)['status'] == 'completada')
+                                                  .length;
+                                              
+                                              final inProcessTasks = tasks
+                                                  .where((task) => (task.data() as Map<String, dynamic>)['status'] == 'en proceso')
+                                                  .length;
+                                              
+                                              final pendingTasks = tasks
+                                                  .where((task) => (task.data() as Map<String, dynamic>)['status'] == 'por hacer')
+                                                  .length;
+                                              
+                                              final progressPercentage = totalTasks > 0
+                                                  ? (completedTasks / totalTasks * 100).round()
+                                                  : 0;
+                                              
+                                              return Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                    children: [
+                                                      Text(
+                                                        'Progreso del Proyecto',
+                                                        style: TextStyle(
+                                                          fontSize: 16,
+                                                          fontWeight: FontWeight.bold,
+                                                          color: Colors.grey[800],
+                                                        ),
+                                                      ),
+                                                      Text(
+                                                        '$progressPercentage%',
+                                                        style: TextStyle(
+                                                          fontSize: 16,
+                                                          fontWeight: FontWeight.bold,
+                                                          color: progressPercentage > 66
+                                                              ? const Color(0xFF4CAF50)
+                                                              : progressPercentage > 33
+                                                                  ? const Color(0xFFFFA726)
+                                                                  : const Color(0xFFF44336),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 16),
+                                                  ClipRRect(
+                                                    borderRadius: BorderRadius.circular(4),
+                                                    child: LinearProgressIndicator(
+                                                      value: progressPercentage / 100,
+                                                      backgroundColor: Colors.grey[200],
+                                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                                        progressPercentage > 66
+                                                            ? const Color(0xFF4CAF50)
+                                                            : progressPercentage > 33
+                                                                ? const Color(0xFFFFA726)
+                                                                : const Color(0xFFF44336),
+                                                      ),
+                                                      minHeight: 8,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 16),
+                                                  Row(
+                                                    children: [
+                                                      _buildTaskCountChip(
+                                                        '$pendingTasks',
+                                                        'Por hacer',
+                                                        Colors.grey[700]!,
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      _buildTaskCountChip(
+                                                        '$inProcessTasks',
+                                                        'En proceso',
+                                                        Colors.blue,
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      _buildTaskCountChip(
+                                                        '$completedTasks',
+                                                        'Completadas',
+                                                        Colors.green,
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ],
+                                              );
+                                            },
+                                          ),
                                         ],
-                                      );
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            
-                            _buildCardContainer(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(10),
-                                        decoration: BoxDecoration(
-                                          color: projectColor.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                        child: Icon(
-                                          Icons.description_outlined,
-                                          color: projectColor,
-                                          size: 22,
-                                        ),
                                       ),
-                                      const SizedBox(width: 16),
-                                      Column(
+                                    ),
+                                    const SizedBox(height: 24),
+                                    
+                                    _buildCardContainer(
+                                      child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                            'Descripción del Proyecto',
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.grey[800],
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            'Detalles y objetivo',
-                                            style: TextStyle(
-                                              color: Colors.grey[600],
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 24),
-                                  Container(
-                                    padding: const EdgeInsets.all(20),
-                                    decoration: BoxDecoration(
-                                      color: Colors.grey[50],
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: Colors.grey.withOpacity(0.1)),
-                                    ),
-                                    child: Text(
-                                      projectDescription,
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        color: Colors.grey[700],
-                                        height: 1.6,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            
-                            _buildCardContainer(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(10),
-                                        decoration: BoxDecoration(
-                                          color: projectColor.withOpacity(0.1),
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                        child: Icon(
-                                          Icons.people_outline,
-                                          color: projectColor,
-                                          size: 22,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Equipo del Proyecto',
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.grey[800],
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            'Miembros y responsabilidades',
-                                            style: TextStyle(
-                                              color: Colors.grey[600],
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 24),
-                                  _buildTeamList(),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            
-                            _buildCardContainer(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.all(10),
-                                            decoration: BoxDecoration(
-                                              color: projectColor.withOpacity(0.1),
-                                              borderRadius: BorderRadius.circular(12),
-                                            ),
-                                            child: Icon(
-                                              Icons.folder_outlined,
-                                              color: projectColor,
-                                              size: 22,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 16),
-                                          Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                          Row(
                                             children: [
-                                              Text(
-                                                'Archivos del Proyecto',
-                                                style: TextStyle(
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.grey[800],
+                                              Container(
+                                                padding: const EdgeInsets.all(10),
+                                                decoration: BoxDecoration(
+                                                  color: projectColor.withOpacity(0.1),
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                                child: Icon(
+                                                  Icons.description_outlined,
+                                                  color: projectColor,
+                                                  size: 22,
                                                 ),
                                               ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                'Documentos adjuntos',
-                                                style: TextStyle(
-                                                  color: Colors.grey[600],
-                                                  fontSize: 14,
-                                                ),
+                                              const SizedBox(width: 16),
+                                              Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'Descripción del Proyecto',
+                                                    style: TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Colors.grey[800],
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    'Detalles y objetivo',
+                                                    style: TextStyle(
+                                                      color: Colors.grey[600],
+                                                      fontSize: 14,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
                                             ],
                                           ),
+                                          const SizedBox(height: 24),
+                                          Container(
+                                            padding: const EdgeInsets.all(20),
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey[50],
+                                              borderRadius: BorderRadius.circular(12),
+                                              border: Border.all(color: Colors.grey.withOpacity(0.1)),
+                                            ),
+                                            child: Text(
+                                              projectDescription,
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                color: Colors.grey[700],
+                                                height: 1.6,
+                                              ),
+                                            ),
+                                          ),
                                         ],
                                       ),
-                                      ElevatedButton.icon(
-                                        onPressed: () => _showUploadFileDialog(context),
-                                        icon: const Icon(Icons.upload_file_rounded, size: 18),
-                                        label: const Text('Subir Archivo'),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: projectColor,
-                                          foregroundColor: Colors.white,
-                                          elevation: 2,
-                                          shadowColor: projectColor.withOpacity(0.4),
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical: 10,
+                                    ),
+                                    const SizedBox(height: 24),
+                                    
+                                    _buildCardContainer(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.all(10),
+                                                decoration: BoxDecoration(
+                                                  color: projectColor.withOpacity(0.1),
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                                child: Icon(
+                                                  Icons.people_outline,
+                                                  color: projectColor,
+                                                  size: 22,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 16),
+                                              Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'Equipo del Proyecto',
+                                                    style: TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Colors.grey[800],
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    'Miembros y responsabilidades',
+                                                    style: TextStyle(
+                                                      color: Colors.grey[600],
+                                                      fontSize: 14,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
                                           ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                        ),
+                                          const SizedBox(height: 24),
+                                          _buildTeamList(),
+                                        ],
                                       ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 24),
-                                  _buildFilesList(),
-                                ],
+                                    ),
+                                    const SizedBox(height: 24),
+                                    
+                                    _buildCardContainer(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.all(10),
+                                                decoration: BoxDecoration(
+                                                  color: projectColor.withOpacity(0.1),
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                                child: Icon(
+                                                  Icons.folder_outlined,
+                                                  color: projectColor,
+                                                  size: 22,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 16),
+                                              Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'Archivos del Proyecto',
+                                                    style: TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Colors.grey[800],
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    'Documentos adjuntos',
+                                                    style: TextStyle(
+                                                      color: Colors.grey[600],
+                                                      fontSize: 14,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ),
+                                          ElevatedButton.icon(
+                                            onPressed: () => _showUploadFileDialog(context),
+                                            icon: const Icon(Icons.upload_file_rounded, size: 18),
+                                            label: const Text('Subir Archivo'),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: projectColor,
+                                              foregroundColor: Colors.white,
+                                              elevation: 2,
+                                              shadowColor: projectColor.withOpacity(0.4),
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 16,
+                                                vertical: 10,
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(12),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    
+                                    const SizedBox(height: 32),
+                                  ],
+                                ),
                               ),
                             ),
-                            
-                            const SizedBox(height: 32),
-                          ],
                         ),
-                      ),
-                      CommentsSection(projectId: widget.projectId),
-                    ],
-                  ),
+                        NotificationListener<ScrollNotification>(
+                          onNotification: (notification) {
+                            print('📜 Comments ScrollNotification: ${notification.runtimeType}');
+                            return false;
+                          },
+                          child: CommentsSection(
+                            projectId: widget.projectId,
+                            scrollController: _commentsScrollController,
+                          ),
+                        ),
+                      ],
+                    ),
                 ),
               ),
             ],
@@ -964,22 +1137,8 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
                           children: [
                             // Foto o iniciales del usuario
                             userPhotoURL != null && userPhotoURL.isNotEmpty
-                                ? CircleAvatar(
-                                    radius: 24,
-                                    backgroundImage: NetworkImage(userPhotoURL),
-                                  )
-                                : CircleAvatar(
-                                    radius: 24,
-                                    backgroundColor: const Color(0xFF1976D2).withOpacity(0.2),
-                                    child: Text(
-                                      userName.isNotEmpty ? userName[0].toUpperCase() : '?',
-                                      style: const TextStyle(
-                                        color: Color(0xFF1976D2),
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 18,
-                                      ),
-                                    ),
-                                  ),
+                                ? _buildUserAvatar(userPhotoURL)
+                                : _buildErrorImage(),
                             const SizedBox(width: 16),
                             
                             // Información del usuario
@@ -1787,5 +1946,59 @@ class _ProjectScreenDetailsState extends State<ProjectScreenDetails> with Single
         ),
       );
     }
+  }
+
+  Widget _buildErrorImage() {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        shape: BoxShape.circle,
+      ),
+      child: Icon(
+        Icons.person_outline,
+        color: Colors.grey[400],
+        size: 24,
+      ),
+    );
+  }
+
+  Widget _buildUserAvatar(String? photoUrl) {
+    if (photoUrl == null || photoUrl.isEmpty) {
+      return _buildErrorImage();
+    }
+
+    return ClipOval(
+      child: Image.network(
+        photoUrl,
+        width: 40,
+        height: 40,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          print('❌ Error cargando imagen: $error');
+          return _buildErrorImage();
+        },
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: CircularProgressIndicator(
+                value: loadingProgress.expectedTotalBytes != null
+                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                    : null,
+                strokeWidth: 2,
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 } 

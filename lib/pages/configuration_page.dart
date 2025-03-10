@@ -47,8 +47,9 @@ class _ConfigurationPageState extends State<ConfigurationPage> with SingleTicker
   }
 
   Future<void> _deleteProject(String projectId) async {
-    setState(() => _isLoading = true);
     try {
+      print('🔍 DEBUG: Iniciando eliminación de proyecto: $projectId');
+      
       // Obtener referencia al proyecto
       final projectRef = FirebaseFirestore.instance.collection('projects').doc(projectId);
       
@@ -56,89 +57,148 @@ class _ConfigurationPageState extends State<ConfigurationPage> with SingleTicker
       final batch = FirebaseFirestore.instance.batch();
       
       // 1. Eliminar todos los comentarios
-      final commentsSnapshot = await projectRef.collection('comments').get();
-      for (var doc in commentsSnapshot.docs) {
-        batch.delete(doc.reference);
+      try {
+        print('🔍 DEBUG: Obteniendo comentarios del proyecto');
+        final commentsSnapshot = await projectRef.collection('comments').get();
+        print('🔍 DEBUG: Encontrados ${commentsSnapshot.docs.length} comentarios para eliminar');
+        
+        for (var doc in commentsSnapshot.docs) {
+          batch.delete(doc.reference);
+        }
+      } catch (e) {
+        print('❌ DEBUG: Error eliminando comentarios: $e');
+        throw e;
       }
 
       // 2. Eliminar todos los archivos de Storage
-      final filesSnapshot = await projectRef.collection('files').get();
-      for (var doc in filesSnapshot.docs) {
-        final fileData = doc.data();
-        if (fileData['storageUrl'] != null) {
-          await FirebaseStorage.instance.refFromURL(fileData['storageUrl']).delete();
+      try {
+        print('🔍 DEBUG: Obteniendo archivos del proyecto');
+        final filesSnapshot = await projectRef.collection('files').get();
+        print('🔍 DEBUG: Encontrados ${filesSnapshot.docs.length} archivos para eliminar');
+        
+        for (var doc in filesSnapshot.docs) {
+          final fileData = doc.data();
+          if (fileData['storageUrl'] != null) {
+            print('🔍 DEBUG: Eliminando archivo de Storage: ${fileData['storageUrl']}');
+            await FirebaseStorage.instance.refFromURL(fileData['storageUrl']).delete();
+          }
+          batch.delete(doc.reference);
         }
-        batch.delete(doc.reference);
+      } catch (e) {
+        print('❌ DEBUG: Error eliminando archivos: $e');
+        throw e;
       }
 
       // 3. Eliminar todas las tareas asociadas
-      final tasksSnapshot = await FirebaseFirestore.instance
-          .collection('tasks')
-          .where('projectId', isEqualTo: projectId)
-          .get();
-      for (var doc in tasksSnapshot.docs) {
-        batch.delete(doc.reference);
+      try {
+        print('🔍 DEBUG: Obteniendo tareas del proyecto');
+        final tasksSnapshot = await FirebaseFirestore.instance
+            .collection('tasks')
+            .where('projectId', isEqualTo: projectId)
+            .get();
+        print('🔍 DEBUG: Encontradas ${tasksSnapshot.docs.length} tareas para eliminar');
+        
+        for (var doc in tasksSnapshot.docs) {
+          batch.delete(doc.reference);
+        }
+      } catch (e) {
+        print('❌ DEBUG: Error eliminando tareas: $e');
+        throw e;
       }
 
       // 4. Eliminar el proyecto
-      batch.delete(projectRef);
+      try {
+        print('🔍 DEBUG: Agregando proyecto al batch para eliminar');
+        batch.delete(projectRef);
+        
+        print('🔍 DEBUG: Ejecutando batch de eliminación del proyecto');
+        await batch.commit();
+        print('✅ DEBUG: Proyecto eliminado exitosamente');
+      } catch (e) {
+        print('❌ DEBUG: Error en eliminación final del proyecto: $e');
+        throw e;
+      }
 
-      // Ejecutar todas las operaciones
-      await batch.commit();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Proyecto eliminado correctamente')),
-      );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al eliminar el proyecto: $e')),
-      );
-    } finally {
-      setState(() => _isLoading = false);
+      print('❌ DEBUG: Error general en eliminación de proyecto: $e');
+      throw e;
     }
   }
 
   Future<void> _deleteUser(String userId) async {
     setState(() => _isLoading = true);
     try {
-      // 1. Eliminar proyectos donde el usuario es propietario
-      final projectsSnapshot = await FirebaseFirestore.instance
-          .collection('projects')
-          .where('ownerId', isEqualTo: userId)
-          .get();
+        print('🔍 DEBUG: Iniciando eliminación de usuario: $userId');
+        print('🔍 DEBUG: Usuario actual: ${FirebaseAuth.instance.currentUser?.email}');
 
-      for (var project in projectsSnapshot.docs) {
-        await _deleteProject(project.id);
-      }
+        // 1. Eliminar proyectos donde el usuario es propietario
+        final projectsSnapshot = await FirebaseFirestore.instance
+            .collection('projects')
+            .where('ownerId', isEqualTo: userId)
+            .get();
+        
+        print('🔍 DEBUG: Encontrados ${projectsSnapshot.docs.length} proyectos para eliminar');
 
-      // 2. Eliminar tareas asignadas al usuario
-      final tasksSnapshot = await FirebaseFirestore.instance
-          .collection('tasks')
-          .where('assignedTo', isEqualTo: userId)
-          .get();
+        for (var project in projectsSnapshot.docs) {
+            try {
+                print('🔍 DEBUG: Intentando eliminar proyecto: ${project.id}');
+                await _deleteProject(project.id);
+                print('✅ DEBUG: Proyecto eliminado exitosamente: ${project.id}');
+            } catch (e) {
+                print('❌ DEBUG: Error eliminando proyecto ${project.id}: $e');
+                throw e;
+            }
+        }
 
-      final batch = FirebaseFirestore.instance.batch();
-      for (var doc in tasksSnapshot.docs) {
-        batch.delete(doc.reference);
-      }
+        // 2. Eliminar tareas asignadas al usuario
+        final tasksSnapshot = await FirebaseFirestore.instance
+            .collection('tasks')
+            .where('assignedTo', isEqualTo: userId)
+            .get();
+        
+        print('🔍 DEBUG: Encontradas ${tasksSnapshot.docs.length} tareas para eliminar');
 
-      // 3. Eliminar documento del usuario
-      batch.delete(FirebaseFirestore.instance.collection('users').doc(userId));
-      
-      // 4. Eliminar taskSummary del usuario
-      batch.delete(FirebaseFirestore.instance.collection('taskSummaries').doc(userId));
+        final batch = FirebaseFirestore.instance.batch();
+        for (var doc in tasksSnapshot.docs) {
+            try {
+                print('🔍 DEBUG: Agregando tarea al batch para eliminar: ${doc.id}');
+                batch.delete(doc.reference);
+            } catch (e) {
+                print('❌ DEBUG: Error agregando tarea al batch ${doc.id}: $e');
+                throw e;
+            }
+        }
 
-      await batch.commit();
+        // 3. Eliminar documento del usuario y taskSummary
+        try {
+            print('🔍 DEBUG: Agregando usuario al batch para eliminar: $userId');
+            batch.delete(FirebaseFirestore.instance.collection('users').doc(userId));
+            batch.delete(FirebaseFirestore.instance.collection('taskSummaries').doc(userId));
+        } catch (e) {
+            print('❌ DEBUG: Error agregando usuario/taskSummary al batch: $e');
+            throw e;
+        }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Usuario eliminado correctamente')),
-      );
+        // Ejecutar el batch
+        try {
+            print('🔍 DEBUG: Ejecutando batch de eliminación');
+            await batch.commit();
+            print('✅ DEBUG: Batch ejecutado exitosamente');
+        } catch (e) {
+            print('❌ DEBUG: Error ejecutando batch: $e');
+            throw e;
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Usuario eliminado correctamente')),
+        );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al eliminar el usuario: $e')),
-      );
+        print('❌ DEBUG: Error general en eliminación de usuario: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error al eliminar el usuario: $e')),
+        );
     } finally {
-      setState(() => _isLoading = false);
+        setState(() => _isLoading = false);
     }
   }
 

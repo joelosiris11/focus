@@ -30,6 +30,13 @@ class _KanbanBoardState extends State<KanbanBoard> {
   void initState() {
     super.initState();
     _scrollController = ScrollController();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          // Forzar rebuild después de la inicialización
+        });
+      }
+    });
   }
   
   @override
@@ -64,7 +71,6 @@ class _KanbanBoardState extends State<KanbanBoard> {
                   setState(() {
                     _isFiltering = !_isFiltering;
                     if (!_isFiltering) {
-                      // Resetear filtros al cerrar
                       _filterUser = null;
                       _filterPriority = null;
                       _showOverdue = false;
@@ -101,7 +107,7 @@ class _KanbanBoardState extends State<KanbanBoard> {
                   .where('projectId', isEqualTo: widget.projectId)
                   .snapshots(),
               builder: (context, snapshot) {
-                if (!snapshot.hasData) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(
                     child: CircularProgressIndicator(
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
@@ -109,9 +115,38 @@ class _KanbanBoardState extends State<KanbanBoard> {
                   );
                 }
 
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('Error: ${snapshot.error}'),
+                  );
+                }
+
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.task_outlined,
+                          size: 64,
+                          color: Colors.grey[300],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No hay tareas en este proyecto',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
                 var tasks = snapshot.data!.docs;
                 
-                // Aplicar filtros si están activos
+                // Aplicar filtros
                 if (_filterUser != null) {
                   tasks = tasks.where((task) {
                     final data = task.data() as Map<String, dynamic>;
@@ -137,36 +172,42 @@ class _KanbanBoardState extends State<KanbanBoard> {
                            status != 'completada';
                   }).toList();
                 }
-                
+
                 return LayoutBuilder(
                   builder: (context, constraints) {
-                    final columnWidth = 320.0;
-                    final totalWidth = columnWidth * 4 + 48.0; // 4 columnas + espaciado
+                    final columnWidth = math.max(320.0, constraints.maxWidth / 4 - 16);
+                    final totalWidth = columnWidth * 4 + 48.0;
                     
-                    return SingleChildScrollView(
+                    return Scrollbar(
                       controller: _scrollController,
-                      scrollDirection: Axis.horizontal,
-                      child: Container(
-                        width: math.max(constraints.maxWidth, totalWidth),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: _buildKanbanColumn('por hacer', '🎯 Por hacer', tasks, Colors.amber, Icons.assignment_outlined),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _buildKanbanColumn('en proceso', '⚡ En proceso', tasks, Colors.blue, Icons.trending_up_outlined),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _buildKanbanColumn('en revision', '👀 En revisión', tasks, Colors.purple, Icons.remove_red_eye_outlined),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _buildKanbanColumn('completada', '✨ Completado', tasks, Colors.green, Icons.check_circle_outline),
-                            ),
-                          ],
+                      thumbVisibility: true,
+                      trackVisibility: true,
+                      child: SingleChildScrollView(
+                        controller: _scrollController,
+                        scrollDirection: Axis.horizontal,
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        child: Container(
+                          width: math.max(constraints.maxWidth, totalWidth),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: _buildKanbanColumn('por hacer', '🎯 Por hacer', tasks, Colors.amber, Icons.assignment_outlined),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: _buildKanbanColumn('en proceso', '⚡ En proceso', tasks, Colors.blue, Icons.trending_up_outlined),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: _buildKanbanColumn('en revision', '👀 En revisión', tasks, Colors.purple, Icons.remove_red_eye_outlined),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: _buildKanbanColumn('completada', '✨ Completado', tasks, Colors.green, Icons.check_circle_outline),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     );
